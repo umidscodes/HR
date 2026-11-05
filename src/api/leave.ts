@@ -234,7 +234,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post", path: `${P}/{id}/approve`, tags: ["Leave requests"], summary: "Approve a pending request",
-  description: `Order: 404, 400, 409 LEAVE_NOT_PENDING, then ${approverRules}`,
+  description: `Order: 400, 404, 409 LEAVE_NOT_PENDING, then ${approverRules}`,
   request: { params: idParam, body: { required: true, content: { "application/json": { schema: ApproveInput, example: { approverId: 3 } } } } },
   responses: {
     200: json(LeaveRequestSchema, "Now APPROVED, with approverId and decidedAt set."), 400: problem("approverId is missing or not a number."), 404: e404,
@@ -244,7 +244,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post", path: `${P}/{id}/reject`, tags: ["Leave requests"], summary: "Reject a pending request",
-  description: `A reason (1 to 200 characters) is required. Order: 404, 400, 409 LEAVE_NOT_PENDING, then ${approverRules}`,
+  description: `A reason (1 to 200 characters) is required. Order: 400, 404, 409 LEAVE_NOT_PENDING, then ${approverRules}`,
   request: { params: idParam, body: { required: true, content: { "application/json": { schema: RejectInput, example: { approverId: 3, reason: "Too many people are away that week." } } } } },
   responses: {
     200: json(LeaveRequestSchema, "Now REJECTED, with approverId, decisionReason and decidedAt set."), 400: problem("approverId or reason is missing or invalid."), 404: e404,
