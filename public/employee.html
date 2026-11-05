@@ -17,6 +17,8 @@
     <div class="grid">
       <div><label for="firstName">First name</label><input id="firstName" name="firstName" maxlength="60"></div>
       <div><label for="lastName">Last name</label><input id="lastName" name="lastName" maxlength="60"></div>
+      <div><label for="gender">Gender</label>
+        <select id="gender" name="gender"><option value="">Choose...</option><option value="FEMALE">Female</option><option value="MALE">Male</option></select></div>
       <div><label for="email">Email</label><input id="email" name="email" type="email"></div>
       <div><label for="phone">Phone (optional)</label><input id="phone" name="phone" data-optional="1" placeholder="416-555-0100"></div>
       <div><label for="dateOfBirth">Date of birth</label><input id="dateOfBirth" name="dateOfBirth" type="date"></div>
@@ -81,7 +83,7 @@
   }
 
   function fill(e) {
-    for (const k of ["firstName", "lastName", "email", "phone", "dateOfBirth", "hireDate", "jobId", "departmentId", "managerId", "salary"]) {
+    for (const k of ["firstName", "lastName", "gender", "email", "phone", "dateOfBirth", "hireDate", "jobId", "departmentId", "managerId", "salary"]) {
       form[k].value = e[k] ?? "";
     }
     document.getElementById("title").textContent = `${e.firstName} ${e.lastName}`;

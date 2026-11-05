@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -52,6 +53,7 @@ class EmployeesApiTest {
         .then().spec(Specs.ok())
                 .body("firstName", equalTo("Ethan"))
                 .body("lastName", equalTo("Nguyen"))
+                .body("gender", equalTo("MALE"))
                 .body("jobId", equalTo(4))
                 .body("salary", equalTo(80000))
                 .body("terminationDate", nullValue())
@@ -107,7 +109,8 @@ class EmployeesApiTest {
                 new Problem.FieldError("firstName", "must not be blank"),
                 new Problem.FieldError("email", "must be a valid email address"),
                 new Problem.FieldError("salary", "must be a number"),
-                new Problem.FieldError("lastName", "is required"));
+                new Problem.FieldError("lastName", "is required"),
+                new Problem.FieldError("gender", "is required"));
     }
 
     /** Boundary values of the Software Engineer range (80000 to 115000, both included). */
@@ -120,6 +123,15 @@ class EmployeesApiTest {
     })
     void salary_must_be_inside_the_job_range(int salary, int expectedStatus) {
         hire(NewEmployee.valid().withSalary(salary)).then().statusCode(expectedStatus);
+    }
+
+    @ParameterizedTest(name = "gender {0} is rejected")
+    @ValueSource(strings = {"male", "OTHER", ""})
+    void gender_must_be_male_or_female(String gender) {
+        hire(NewEmployee.valid().withGender(gender))
+                .then().spec(Specs.problem(400, "VALIDATION_FAILED"))
+                .body("errors[0].field", equalTo("gender"))
+                .body("errors[0].message", equalTo("must be one of: MALE, FEMALE"));
     }
 
     @Test

@@ -150,6 +150,13 @@ const collection = {
       req("Search by department, best paid first", "GET", "/employees?departmentId=2&sort=salary,desc", {
         tests: [status(200), 'pm.test("Daniel Okafor first", () => pm.expect(pm.response.json().content[0].id).to.eql(2));'],
       }),
+      req("Search by gender", "GET", "/employees?gender=FEMALE", {
+        tests: [status(200), 'pm.test("31 women, all FEMALE", () => { const p = pm.response.json(); pm.expect(p.totalElements).to.eql(31); pm.expect(p.content.every(e => e.gender === "FEMALE")).to.be.true; });'],
+      }),
+      req("Hire with an invalid gender (400)", "POST", "/employees", {
+        body: { firstName: "Alex", lastName: "Gender", gender: "OTHER", email: "alex.gender@icehr.test", dateOfBirth: "1995-06-15", hireDate: "2024-03-04", jobId: 4, departmentId: 2, salary: 95000 },
+        tests: [...problem("VALIDATION_FAILED", 400), 'pm.test("gender must be MALE or FEMALE", () => pm.expect(pm.response.json().errors).to.eql([{ field: "gender", message: "must be one of: MALE, FEMALE" }]));'],
+      }),
       req("Search by name", "GET", "/employees?search=nguyen", {
         tests: [status(200), 'pm.test("finds Ethan (13)", () => pm.expect(pm.response.json().content.map(e => e.id)).to.eql([13]));'],
       }),
@@ -158,7 +165,7 @@ const collection = {
       }),
       req("Hire an employee", "POST", "/employees", {
         prerequest: ['pm.collectionVariables.set("uniqueEmail", "postman." + Date.now() + "@icehr.test");'],
-        rawBody: JSON.stringify({ firstName: "Pat", lastName: "Postman", email: "{{uniqueEmail}}", phone: "416-555-0199", dateOfBirth: "1995-06-15", hireDate: "2024-03-04", jobId: 4, departmentId: 2, managerId: 9, salary: 95000 }, null, 2),
+        rawBody: JSON.stringify({ firstName: "Pat", lastName: "Postman", gender: "FEMALE", email: "{{uniqueEmail}}", phone: "416-555-0199", dateOfBirth: "1995-06-15", hireDate: "2024-03-04", jobId: 4, departmentId: 2, managerId: 9, salary: 95000 }, null, 2),
         tests: [
           status(201),
           'pm.test("ACTIVE with an id from 1001", () => { const e = pm.response.json(); pm.expect(e.status).to.eql("ACTIVE"); pm.expect(e.id).to.be.at.least(1001); });',
@@ -166,15 +173,15 @@ const collection = {
         ],
       }),
       req("Hire with a taken email (409)", "POST", "/employees", {
-        body: { firstName: "Copy", lastName: "Cat", email: "ETHAN.NGUYEN@icehr.test", dateOfBirth: "1995-06-15", hireDate: "2024-03-04", jobId: 4, departmentId: 2, salary: 95000 },
+        body: { firstName: "Copy", lastName: "Cat", gender: "MALE", email: "ETHAN.NGUYEN@icehr.test", dateOfBirth: "1995-06-15", hireDate: "2024-03-04", jobId: 4, departmentId: 2, salary: 95000 },
         tests: problem("EMAIL_TAKEN", 409),
       }),
       req("Hire below the salary range (422)", "POST", "/employees", {
-        body: { firstName: "Low", lastName: "Pay", email: "low.pay@icehr.test", dateOfBirth: "1995-06-15", hireDate: "2024-03-04", jobId: 4, departmentId: 2, salary: 79999 },
+        body: { firstName: "Low", lastName: "Pay", gender: "FEMALE", email: "low.pay@icehr.test", dateOfBirth: "1995-06-15", hireDate: "2024-03-04", jobId: 4, departmentId: 2, salary: 79999 },
         tests: problem("SALARY_OUT_OF_RANGE", 422),
       }),
       req("Hire someone too young (422)", "POST", "/employees", {
-        body: { firstName: "Too", lastName: "Young", email: "too.young@icehr.test", dateOfBirth: "2006-03-05", hireDate: "2024-03-04", jobId: 15, departmentId: 8, salary: 45000 },
+        body: { firstName: "Too", lastName: "Young", gender: "MALE", email: "too.young@icehr.test", dateOfBirth: "2006-03-05", hireDate: "2024-03-04", jobId: 15, departmentId: 8, salary: 45000 },
         tests: problem("EMPLOYEE_UNDERAGE", 422),
       }),
       req("Hire with invalid fields (400)", "POST", "/employees", {

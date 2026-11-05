@@ -1160,6 +1160,7 @@ has <code>manager_id</code> NULL, and the requests she approved (2, 9, 10, 11 an
 <tr><td><code>employees_phone_format</code></td><td><code>phone IS NULL OR phone ~ '^\\d{3}-\\d{3}-\\d{4}$'</code></td><td><code>'4165550114'</code></td></tr>
 <tr><td><code>employees_email_lowercase</code></td><td><code>email = lower(email)</code></td><td><code>'Olivia.Brown@icehr.test'</code></td></tr>
 <tr><td><code>employees_status_valid</code></td><td>status is <code>ACTIVE</code> or <code>TERMINATED</code></td><td><code>'RETIRED'</code></td></tr>
+<tr><td><code>employees_gender_valid</code></td><td>gender is <code>MALE</code> or <code>FEMALE</code> (and <code>NOT NULL</code>)</td><td><code>'OTHER'</code>, <code>'male'</code></td></tr>
 <tr><td><code>employees_termination_date_matches_status</code></td><td>TERMINATED exactly when <code>termination_date</code> is set</td><td>status TERMINATED with no date, or a date on an ACTIVE row</td></tr>
 <tr><td><code>employees_not_own_manager</code></td><td><code>manager_id &lt;&gt; id</code></td><td>Olivia as her own manager</td></tr>
 <tr><td><code>employees_hired_after_birth</code></td><td><code>hire_date &gt; date_of_birth</code></td><td>hired in 1990, born in 1994</td></tr>
@@ -1256,9 +1257,9 @@ ROLLBACK;`,
           lang: "sql",
           code: `
 -- The database accepts a Software Engineer at 30000. The API's range is 80000 to 115000.
-INSERT INTO employees (first_name, last_name, email, date_of_birth, hire_date,
+INSERT INTO employees (first_name, last_name, gender, email, date_of_birth, hire_date,
                        job_id, department_id, manager_id, salary)
-VALUES ('Sql', 'Lowpay', 'sql.lowpay@icehr.test', '1995-06-15', '2026-11-02', 4, 2, 9, 30000)
+VALUES ('Sql', 'Lowpay', 'FEMALE', 'sql.lowpay@icehr.test', '1995-06-15', '2026-11-02', 4, 2, 9, 30000)
 RETURNING id;
 COMMIT;
 
@@ -2389,10 +2390,10 @@ class SqlSetupTest {
 
     private Integer insertQaAnalyst(String email) {
         return writer.scalar(Integer.class,
-                "INSERT INTO employees (first_name, last_name, email, date_of_birth, hire_date, " +
+                "INSERT INTO employees (first_name, last_name, gender, email, date_of_birth, hire_date, " +
                 "                       job_id, department_id, manager_id, salary) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
-                "Sql", "Setup", email, LocalDate.of(1990, 5, 1), LocalDate.of(2020, 1, 6), 6, 3, 3, 70000);
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                "Sql", "Setup", "MALE", email, LocalDate.of(1990, 5, 1), LocalDate.of(2020, 1, 6), 6, 3, 3, 70000);
     }
 
     @Test

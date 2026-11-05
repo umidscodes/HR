@@ -4,8 +4,8 @@ import { query as sql, transaction, type Db } from "../db";
 import { conflict, notFound, rule, validation, type FieldError } from "../errors";
 import { body, created, pageBody, paging, pathId, query } from "../http";
 import { currentYear, eighteenthBirthday, isRealDate, today } from "../dates";
-import { ALLOWANCE, EMPLOYEE_COLUMNS, LEAVE_TYPES, findEmployee, toEmployee, type EmployeeRow, type LeaveType } from "../model";
-import { date, email, id, idParam, json, pageOf, pagingQuery, phone, problem, problemExample, registry, text, wholeNumber, z } from "../openapi";
+import { ALLOWANCE, EMPLOYEE_COLUMNS, GENDERS, LEAVE_TYPES, findEmployee, toEmployee, type EmployeeRow, type LeaveType } from "../model";
+import { date, email, id, idParam, json, oneOf, pageOf, pagingQuery, phone, problem, problemExample, registry, text, wholeNumber, z } from "../openapi";
 import { EmployeeSchema } from "../schemas";
 import type { JobRow } from "./jobs";
 
@@ -14,6 +14,7 @@ import type { JobRow } from "./jobs";
 const fields = {
   firstName: text(1, 50).openapi({ example: "Jane" }),
   lastName: text(1, 50).openapi({ example: "Doe" }),
+  gender: oneOf(GENDERS).openapi({ example: "FEMALE", description: "MALE or FEMALE." }),
   email: email().openapi({ example: "jane.doe@icehr.test", description: "Stored in lower case. Must be unique." }),
   phone: phone().openapi({ example: "416-555-0199", description: "Optional. Format 416-555-0100." }),
   dateOfBirth: date().openapi({ example: "1995-06-15" }),
@@ -28,6 +29,7 @@ const EmployeeInput = registry.register("EmployeeInput", z.object(fields));
 const EmployeePatch = registry.register("EmployeePatch", z.object({
   firstName: fields.firstName.optional(),
   lastName: fields.lastName.optional(),
+  gender: fields.gender.optional(),
   email: fields.email.optional(),
   phone: fields.phone,
   dateOfBirth: fields.dateOfBirth.optional(),
@@ -42,12 +44,12 @@ const TerminateInput = registry.register("TerminateInput", z.object({
 }));
 
 interface Emp {
-  firstName: string; lastName: string; email: string; phone: string | null; dateOfBirth: string; hireDate: string;
+  firstName: string; lastName: string; gender: "MALE" | "FEMALE"; email: string; phone: string | null; dateOfBirth: string; hireDate: string;
   jobId: number; departmentId: number; managerId: number | null; salary: number;
 }
 
 const fromRow = (r: EmployeeRow): Emp => ({
-  firstName: r.first_name, lastName: r.last_name, email: r.email, phone: r.phone, dateOfBirth: r.date_of_birth,
+  firstName: r.first_name, lastName: r.last_name, gender: r.gender, email: r.email, phone: r.phone, dateOfBirth: r.date_of_birth,
   hireDate: r.hire_date, jobId: r.job_id, departmentId: r.department_id, managerId: r.manager_id, salary: r.salary,
 });
 
@@ -106,6 +108,7 @@ const ListQuery = z.object({
   jobId: z.string().regex(/^\d+$/, "must be a whole number").optional(),
   managerId: z.string().regex(/^\d+$/, "must be a whole number").optional(),
   status: z.enum(["ACTIVE", "TERMINATED"], { error: () => "must be ACTIVE or TERMINATED" }).optional(),
+  gender: z.enum(GENDERS, { error: () => "must be MALE or FEMALE" }).optional(),
   search: z.string().max(100, "must be at most 100 characters").optional(),
   hiredFrom: z.string().refine(isRealDate, "must be a real date in the format YYYY-MM-DD").optional(),
   hiredTo: z.string().refine(isRealDate, "must be a real date in the format YYYY-MM-DD").optional(),
@@ -133,6 +136,7 @@ router.get("/employees", async (req, res) => {
   if (q.jobId) add("job_id = ?", Number(q.jobId));
   if (q.managerId) add("manager_id = ?", Number(q.managerId));
   if (q.status) add("status = ?", q.status);
+  if (q.gender) add("gender = ?", q.gender);
   if (q.search?.trim()) {
     add("(first_name || ' ' || last_name || ' ' || email) ILIKE ?", `%${q.search.trim().replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
   }
@@ -160,9 +164,9 @@ router.post("/employees", async (req, res) => {
     await c.query("LOCK TABLE employees IN SHARE ROW EXCLUSIVE MODE");
     await check(e, c);
     const [ins] = await sql<{ id: number }>(
-      `INSERT INTO employees (first_name, last_name, email, phone, date_of_birth, hire_date, job_id, department_id, manager_id, salary)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-      [e.firstName, e.lastName, e.email, e.phone, e.dateOfBirth, e.hireDate, e.jobId, e.departmentId, e.managerId, e.salary], c);
+      `INSERT INTO employees (first_name, last_name, email, phone, date_of_birth, hire_date, job_id, department_id, manager_id, salary, gender)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+      [e.firstName, e.lastName, e.email, e.phone, e.dateOfBirth, e.hireDate, e.jobId, e.departmentId, e.managerId, e.salary, e.gender], c);
     return load(ins.id, c);
   });
   created(res, `/api/v1/employees/${row.id}`, toEmployee(row));
@@ -178,8 +182,8 @@ async function update(id: number, patch: Partial<Emp>) {
     await check(e, c, id);
     await c.query(
       `UPDATE employees SET first_name = $2, last_name = $3, email = $4, phone = $5, date_of_birth = $6, hire_date = $7,
-              job_id = $8, department_id = $9, manager_id = $10, salary = $11, updated_at = now() WHERE id = $1`,
-      [id, e.firstName, e.lastName, e.email, e.phone, e.dateOfBirth, e.hireDate, e.jobId, e.departmentId, e.managerId, e.salary]);
+              job_id = $8, department_id = $9, manager_id = $10, salary = $11, gender = $12, updated_at = now() WHERE id = $1`,
+      [id, e.firstName, e.lastName, e.email, e.phone, e.dateOfBirth, e.hireDate, e.jobId, e.departmentId, e.managerId, e.salary, e.gender]);
     return load(id, c);
   });
 }
@@ -308,7 +312,7 @@ const e422 = problem(
   "MANAGER_NOT_ACTIVE, MANAGER_CYCLE, EMPLOYEE_UNDERAGE, HIRE_DATE_IN_FUTURE, SALARY_OUT_OF_RANGE.",
   problemExample(422, "SALARY_OUT_OF_RANGE", "Salary 30000 is outside the range for Software Engineer (80000 to 115000).", P));
 const rulesText =
-  "Rules: email unique (409 EMAIL_TAKEN); jobId, departmentId and managerId must exist; the manager must be ACTIVE; " +
+  "Rules: gender is MALE or FEMALE; email unique (409 EMAIL_TAKEN); jobId, departmentId and managerId must exist; the manager must be ACTIVE; " +
   "at least 18 years old on the hire date; hire date not in the future; salary within the job's range.";
 
 registry.registerPath({
@@ -321,6 +325,7 @@ registry.registerPath({
       jobId: z.string().optional(),
       managerId: z.string().optional(),
       status: z.enum(["ACTIVE", "TERMINATED"]).optional(),
+      gender: z.enum(["MALE", "FEMALE"]).optional(),
       search: z.string().optional().openapi({ example: "nguyen" }),
       hiredFrom: z.string().optional().openapi({ example: "2020-01-01" }),
       hiredTo: z.string().optional().openapi({ example: "2024-12-31" }),
@@ -344,7 +349,7 @@ registry.registerPath({
       content: {
         "application/json": {
           schema: EmployeeInput,
-          example: { firstName: "Jane", lastName: "Doe", email: "jane.doe@icehr.test", phone: "416-555-0199", dateOfBirth: "1995-06-15", hireDate: "2026-11-02", jobId: 4, departmentId: 2, managerId: 9, salary: 95000 },
+          example: { firstName: "Jane", lastName: "Doe", gender: "FEMALE", email: "jane.doe@icehr.test", phone: "416-555-0199", dateOfBirth: "1995-06-15", hireDate: "2026-11-02", jobId: 4, departmentId: 2, managerId: 9, salary: 95000 },
         },
       },
     },
@@ -366,7 +371,7 @@ registry.registerPath({
       content: {
         "application/json": {
           schema: EmployeeInput,
-          example: { firstName: "Ethan", lastName: "Nguyen", email: "ethan.nguyen@icehr.test", phone: "416-555-0113", dateOfBirth: "1996-02-14", hireDate: "2023-04-03", jobId: 4, departmentId: 2, managerId: 9, salary: 90000 },
+          example: { firstName: "Ethan", lastName: "Nguyen", gender: "MALE", email: "ethan.nguyen@icehr.test", phone: "416-555-0113", dateOfBirth: "1996-02-14", hireDate: "2023-04-03", jobId: 4, departmentId: 2, managerId: 9, salary: 90000 },
         },
       },
     },

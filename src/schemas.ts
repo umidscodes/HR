@@ -5,6 +5,7 @@ export const EmployeeSchema = registry.register("Employee", z.object({
   id: z.number().int().openapi({ example: 13 }),
   firstName: z.string().openapi({ example: "Ethan" }),
   lastName: z.string().openapi({ example: "Nguyen" }),
+  gender: z.enum(["MALE", "FEMALE"]).openapi({ example: "MALE" }),
   email: z.string().openapi({ example: "ethan.nguyen@icehr.test" }),
   phone: z.string().nullable().openapi({ example: "416-555-0113" }),
   dateOfBirth: z.string().openapi({ example: "1996-02-14", format: "date" }),

@@ -17,7 +17,7 @@ You use it to learn **REST Assured** (API testing in Java) and **SQL / JDBC** (d
 
 ## Contents
 
-1. [Setup](#1-setup-windows-macos-or-linux)
+1. [Setup](#1-setup-windows-macos-or-linux) and [updating to a new version](#11-updating-to-a-new-version)
 2. [What is inside](#2-what-is-inside)
 3. [Seed data and personas](#3-seed-data-and-personas)
 4. [The API](#4-the-api)
@@ -52,12 +52,74 @@ Press **Ctrl+C** to stop. Later starts take a few seconds. Your data is kept bet
 | `npm run dev` | Database + app on port 8080 (first run also creates and seeds the database) |
 | `npm run reset` | Puts all data back to the seed (same as `POST /api/v1/reset`) |
 | `npm run db:start` | Runs only the database, for DBeaver or JDBC practice |
-| `npm test` | The app's own smoke tests (49 tests of every business rule, against a separate test database) |
+| `npm test` | The app's own smoke tests (50 tests of every business rule, against a separate test database) |
 | `npm run postman` | Rebuilds the Postman collection in `postman/` |
 
 **Ports:** to use other ports, set `PORT` (app, default 8080) and/or `DB_PORT` (database, default 5434) before `npm run dev`. On Windows Command Prompt: `set PORT=8081`; in PowerShell: `$env:PORT="8081"`.
 
 Ice HR and Ice Bank use different ports (8080/5434 and 3000/5433), so both can run at the same time.
+
+### 1.1 Updating to a new version
+
+When your instructor says Ice HR has changed, update your copy. Your data, your tutorial progress and your own tests are kept.
+
+**1. Stop Ice HR.** Press **Ctrl+C** in the terminal running `npm run dev`.
+
+**2. Save your own work first.** In the Ice HR folder, run:
+
+```bash
+git status
+```
+
+- *"nothing to commit, working tree clean"*: go to step 3.
+- Files listed as **untracked** (new files you created, such as your own test classes): nothing to do. `git pull` does not touch them.
+- Files listed as **modified** (you changed a file that came with Ice HR, such as `EmployeesApiTest.java` or `local.properties`): put your changes aside, update, then bring them back:
+
+```bash
+git stash
+git pull
+git stash pop
+```
+
+If `git stash pop` reports a **conflict**, the same lines changed on both sides. Open the file, keep the version you want between the `<<<<<<<` and `>>>>>>>` markers, delete the markers, and save. Tip: write your own tests in **new** files (for example `starter/src/test/java/com/icehr/mytests/`) and you will never get conflicts.
+
+**3. Get the new version.**
+
+```bash
+git pull
+npm install
+```
+
+`npm install` is quick when nothing changed. Run it every time, because a new version may need a new library.
+
+**4. Start Ice HR.**
+
+```bash
+npm run dev
+```
+
+If the database changed, you see `[db] Applying migration ...` lines. These update your database in place and **keep your data**. Then check http://localhost:8080/api/v1/health.
+
+**5. Update the starter project.** In IntelliJ, open the Maven tool window and click **Reload All Maven Projects**, then run `mvn test` in the `starter` folder. If tests that worked before now fail to compile, read the version notes below: a model class (such as `NewEmployee`) may have a new field.
+
+**6. Refresh the tutorials.** Reload http://localhost:8080/tutorials/ with **Ctrl+F5**. Your ticks, notes and quiz scores stay, because they are saved in your browser.
+
+**Optional: start from clean data.** To get exactly the data the README describes (for example new seed employees), run `npm run reset`. This deletes everything you created.
+
+| Problem after updating | Fix |
+| --- | --- |
+| `git pull` says *Your local changes would be overwritten* | You skipped step 2. Run `git stash`, `git pull`, `git stash pop`. |
+| `git pull` says *You have divergent branches* | You committed on `main` yourself. Run `git pull --no-rebase` (Git then merges). If it opens an editor for the merge message, save and close it (in Vim: type `:wq` and press Enter). |
+| `Migration ... failed` when starting | Your database is in an unexpected state. Run `npm run reset` (this resets your data). If that fails too, stop Ice HR, delete the `.icehr` folder, and run `npm run dev` again. |
+| `Cannot find module ...` | You skipped `npm install`. |
+| Tests fail with `400 VALIDATION_FAILED` on a field you never sent | The new version added a required field. Check the version notes and add the field to your request bodies. |
+
+#### Version notes
+
+| Version | What changed | What you need to do |
+| --- | --- | --- |
+| Gender | Employees have a required `gender` field: `MALE` or `FEMALE` (rule E1a). New filter `GET /employees?gender=`. New database column `employees.gender` (NOT NULL, CHECK `employees_gender_valid`), also in `v_employee_directory`. The seed has 31 women and 29 men. | Add `"gender"` to every body you send to `POST /employees` or `PUT /employees/{id}`. If you build `new NewEmployee(...)` yourself, gender is the third argument (`"Jane", "Doe", "FEMALE", email, ...`). Add `gender` to any SQL `INSERT INTO employees`. Your existing data gets genders automatically; employees you created yourself are set to `MALE`. |
+| First release | Ice HR, the starter project, Postman collection and tutorials. | Follow section 1. |
 
 ## 2. What is inside
 
@@ -71,7 +133,7 @@ jobs (15)                 departments (9)
         │ job_id                   │ department_id    │
         │                          │                  ▼
         └────────────── employees (60) ◄──────────────┘
-                          id, first_name, last_name, email, phone,
+                          id, first_name, last_name, gender, email, phone,
                           date_of_birth, hire_date, salary, status,
                           termination_date, manager_id ──┐ (another employee)
                                  ▲            ▲          │
@@ -130,7 +192,7 @@ After every reset the data is **exactly the same**: same ids, names, salaries, d
 | 58 | Tanya Ivanova | **TERMINATED** on 2026-06-30. Cannot be edited, request leave or become anyone's manager. |
 | 60 | Ella Robinson | The newest hire (2026-10-19) and the youngest (born 2007-03-15). Salary 40000, the minimum for Support Agent. No leave. |
 
-Employees 20, 35 and 47 have **no phone number** (`phone: null`, SQL `IS NULL`). Department 9 (Research Lab) has no employees, so it is the one department you can delete. Every email is `firstname.lastname@icehr.test` in lower case, without accents or apostrophes.
+There are **31 women and 29 men** (`gender` is `FEMALE` or `MALE`); in Engineering, 6 women and 8 men. Employees 20, 35 and 47 have **no phone number** (`phone: null`, SQL `IS NULL`). Department 9 (Research Lab) has no employees, so it is the one department you can delete. Every email is `firstname.lastname@icehr.test` in lower case, without accents or apostrophes.
 
 ### Leave requests
 
@@ -234,7 +296,7 @@ Other 400 codes: `MALFORMED_JSON` (the body is not valid JSON, or is not a JSON 
 | PATCH | `/departments/{id}` | Change only the fields you send |
 | DELETE | `/departments/{id}` | Delete an empty department |
 | GET | `/departments/{id}/employees` | The department's employees (array), optional `?status=ACTIVE` or `TERMINATED` |
-| GET | `/employees` | Search (paged). Filters: `departmentId`, `jobId`, `managerId`, `status`, `search` (in first name, last name or email, ignoring case), `hiredFrom`, `hiredTo`, `minSalary`, `maxSalary`. Sort: `id`, `firstName`, `lastName`, `email`, `hireDate`, `dateOfBirth`, `salary`. |
+| GET | `/employees` | Search (paged). Filters: `departmentId`, `jobId`, `managerId`, `status`, `gender` (`MALE` or `FEMALE`), `search` (in first name, last name or email, ignoring case), `hiredFrom`, `hiredTo`, `minSalary`, `maxSalary`. Sort: `id`, `firstName`, `lastName`, `email`, `hireDate`, `dateOfBirth`, `salary`. |
 | POST | `/employees` | Hire |
 | GET | `/employees/{id}` | One employee |
 | PUT | `/employees/{id}` | Replace (send every field) |
@@ -262,6 +324,7 @@ Content-Type: application/json
 {
   "firstName": "Jane",
   "lastName": "Doe",
+  "gender": "FEMALE",
   "email": "Jane.Doe@icehr.test",
   "phone": "416-555-0199",
   "dateOfBirth": "1995-06-15",
@@ -278,7 +341,7 @@ HTTP/1.1 201 Created
 Location: /api/v1/employees/1001
 Content-Type: application/json; charset=utf-8
 
-{"id":1001,"firstName":"Jane","lastName":"Doe","email":"jane.doe@icehr.test","phone":"416-555-0199",
+{"id":1001,"firstName":"Jane","lastName":"Doe","gender":"FEMALE","email":"jane.doe@icehr.test","phone":"416-555-0199",
  "dateOfBirth":"1995-06-15","hireDate":"2026-11-02","jobId":4,"departmentId":2,"managerId":9,"salary":95000,
  "status":"ACTIVE","terminationDate":null,"createdAt":"2026-11-05T10:15:00-05:00","updatedAt":"2026-11-05T10:15:00-05:00"}
 ```
@@ -297,6 +360,7 @@ Content-Type: application/json; charset=utf-8
 | # | Field or rule | Valid | Otherwise |
 | --- | --- | --- | --- |
 | E1 | `firstName`, `lastName` | Required, 1 to 50 characters after trimming spaces | 400 |
+| E1a | `gender` | Required: exactly `MALE` or `FEMALE` (upper case; `male`, `OTHER` or `""` are invalid) | 400 |
 | E2 | `email` | Required, looks like `name@domain.tld`, at most 100 characters. **Stored in lower case.** | 400 |
 | E3 | `phone` | Optional (`null` or left out). Format `416-555-0100` | 400 |
 | E4 | `dateOfBirth`, `hireDate` | Required, real dates `YYYY-MM-DD` (`2026-02-30` is invalid) | 400 |
@@ -430,7 +494,7 @@ The database runs whenever `npm run dev` (or `npm run db:start`) runs. Connect w
 | --- | --- | --- |
 | `jobs` | `id`, `title`, `min_salary`, `max_salary` | title unique; `min_salary > 0`; `max_salary >= min_salary` |
 | `departments` | `id`, `name`, `code`, `location`, `manager_id`, `created_at`, `updated_at` | `code` unique and `^[A-Z]{2,5}$`; `lower(name)` unique; `manager_id` → `employees.id` **ON DELETE SET NULL** |
-| `employees` | `id`, `first_name`, `last_name`, `email`, `phone`, `date_of_birth`, `hire_date`, `job_id`, `department_id`, `manager_id`, `salary`, `status`, `termination_date`, `created_at`, `updated_at` | `email` unique and lower case; `phone` NULL or `###-###-####`; `salary > 0`; `status` in (`ACTIVE`, `TERMINATED`); `termination_date` set exactly when TERMINATED; not their own manager; `hire_date > date_of_birth`; `job_id` → `jobs`; `department_id` → `departments` **ON DELETE RESTRICT**; `manager_id` → `employees` **ON DELETE RESTRICT** |
+| `employees` | `id`, `first_name`, `last_name`, `gender`, `email`, `phone`, `date_of_birth`, `hire_date`, `job_id`, `department_id`, `manager_id`, `salary`, `status`, `termination_date`, `created_at`, `updated_at` | `gender` NOT NULL, `MALE` or `FEMALE`; `email` unique and lower case; `phone` NULL or `###-###-####`; `salary > 0`; `status` in (`ACTIVE`, `TERMINATED`); `termination_date` set exactly when TERMINATED; not their own manager; `hire_date > date_of_birth`; `job_id` → `jobs`; `department_id` → `departments` **ON DELETE RESTRICT**; `manager_id` → `employees` **ON DELETE RESTRICT** |
 | `leave_requests` | `id`, `employee_id`, `type`, `start_date`, `end_date`, `days`, `reason`, `status`, `approver_id`, `decision_reason`, `decided_at`, `created_at`, `updated_at` | `type` and `status` from the fixed lists; `end_date >= start_date`; `days > 0`; `employee_id` → `employees` **ON DELETE CASCADE**; `approver_id` → `employees` **ON DELETE SET NULL** |
 
 **Dates in SQL:** the database server runs in UTC, so `CURRENT_DATE` can be a different day from Ice HR's "today" late in the evening. When a query needs Toronto's today, write `(now() AT TIME ZONE 'America/Toronto')::date`.
@@ -440,7 +504,7 @@ Some rules live **only in the API** (salary range, age at hire, leave balance, o
 ### Views
 
 - **`v_department_stats`**: one row per department: `department_id`, `department_name`, `department_code`, `headcount` (active only), `average_salary` (rounded), `min_salary`, `max_salary`, `total_salary`. `GET /reports/department-stats` returns exactly this.
-- **`v_employee_directory`**: every employee with `full_name`, `email`, `status`, `job_title`, `department_name`, `manager_id`, `manager_name`, `salary`, `hire_date`.
+- **`v_employee_directory`**: every employee with `full_name`, `email`, `status`, `job_title`, `department_name`, `manager_id`, `manager_name`, `salary`, `hire_date`, `gender`.
 
 ### A few queries to start with
 

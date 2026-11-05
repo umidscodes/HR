@@ -6,18 +6,22 @@ import { isoDateTime } from "./dates";
 import { query, type Db } from "./db";
 
 export interface EmployeeRow {
-  id: number; first_name: string; last_name: string; email: string; phone: string | null;
+  id: number; first_name: string; last_name: string; gender: Gender; email: string; phone: string | null;
   date_of_birth: string; hire_date: string; job_id: number; department_id: number; manager_id: number | null;
   salary: number; status: "ACTIVE" | "TERMINATED"; termination_date: string | null; created_at: Date; updated_at: Date;
 }
 
-export const EMPLOYEE_COLUMNS = `id, first_name, last_name, email, phone, date_of_birth, hire_date, job_id, department_id,
+export const GENDERS = ["MALE", "FEMALE"] as const;
+export type Gender = (typeof GENDERS)[number];
+
+export const EMPLOYEE_COLUMNS = `id, first_name, last_name, gender, email, phone, date_of_birth, hire_date, job_id, department_id,
   manager_id, salary, status, termination_date, created_at, updated_at`;
 
 export const toEmployee = (r: EmployeeRow) => ({
   id: r.id,
   firstName: r.first_name,
   lastName: r.last_name,
+  gender: r.gender,
   email: r.email,
   phone: r.phone,
   dateOfBirth: r.date_of_birth,

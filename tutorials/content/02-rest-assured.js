@@ -1155,14 +1155,14 @@ POST /api/v1/employees HTTP/1.1
 Content-Type: application/json
 Accept: application/json, application/javascript, text/javascript, text/json
 
-{"firstName":"Test","lastName":"Engineer","email":"test.3f9a1c2b@icehr.test","phone":"416-555-0199",
+{"firstName":"Test","lastName":"Engineer","gender":"FEMALE","email":"test.3f9a1c2b@icehr.test","phone":"416-555-0199",
  "dateOfBirth":"1995-06-15","hireDate":"2024-03-04","jobId":4,"departmentId":2,"managerId":9,"salary":95000}
 
 HTTP/1.1 201 Created
 Location: /api/v1/employees/1001
 Content-Type: application/json; charset=utf-8
 
-{"id":1001,"firstName":"Test","lastName":"Engineer","email":"test.3f9a1c2b@icehr.test","phone":"416-555-0199",
+{"id":1001,"firstName":"Test","lastName":"Engineer","gender":"FEMALE","email":"test.3f9a1c2b@icehr.test","phone":"416-555-0199",
  "dateOfBirth":"1995-06-15","hireDate":"2024-03-04","jobId":4,"departmentId":2,"managerId":9,"salary":95000,
  "status":"ACTIVE","terminationDate":null,"createdAt":"2026-11-05T10:15:00-05:00","updatedAt":"2026-11-05T10:15:00-05:00"}`,
           note: `Add <code>.log().body()</code> after <code>given()</code> to print the JSON your test sends.`,
@@ -1419,7 +1419,7 @@ class EmployeeUpdateTest {
 
     @Test
     void put_replaces_everything_so_a_missing_phone_becomes_null() {
-        NewEmployee replacement = new NewEmployee("Test", "Replaced", TestData.uniqueEmail(), null,
+        NewEmployee replacement = new NewEmployee("Test", "Replaced", "FEMALE", TestData.uniqueEmail(), null,
                 LocalDate.of(1995, 6, 15), LocalDate.of(2024, 3, 4), 4, 2, 9, 95000);
 
         given().spec(Specs.api())
@@ -1510,7 +1510,7 @@ tests than positive ones.</p>
 <p>When fields are wrong, Ice HR does not stop at the first one. <code>errors</code> lists <em>every</em> invalid field, in the order the fields are defined, each with a
 <code>field</code> and a <code>message</code>. That lets one request test many rules, and it is a rule you can test too.</p>
 <p><strong>Worked example.</strong> Send this to <code>POST /api/v1/employees</code>:</p>
-<pre><code>{"firstName":"Jane","lastName":"","email":"jane.doe-at-icehr.test","phone":"4165550199",
+<pre><code>{"firstName":"Jane","lastName":"","gender":"FEMALE","email":"jane.doe-at-icehr.test","phone":"4165550199",
  "dateOfBirth":"1995-02-30","hireDate":"2026-11-02","jobId":4,"departmentId":2,"salary":95000.5}</code></pre>
 <p>Ice HR answers 400 with five errors: <code>lastName</code> "must not be blank", <code>email</code> "must be a valid email address", <code>phone</code> "must be in the format
 416-555-0100", <code>dateOfBirth</code> "must be a real date in the format YYYY-MM-DD" (there is no 30 February) and <code>salary</code> "must be a whole number".
@@ -1592,6 +1592,7 @@ class ErrorResponsesTest {
                 {
                   "firstName": "Jane",
                   "lastName": "",
+                  "gender": "FEMALE",
                   "email": "jane.doe-at-icehr.test",
                   "phone": "4165550199",
                   "dateOfBirth": "1995-02-30",
@@ -1703,6 +1704,7 @@ public record Problem(
   "errors": [
     { "field": "firstName", "message": "is required" },
     { "field": "lastName", "message": "is required" },
+    { "field": "gender", "message": "is required" },
     { "field": "email", "message": "is required" },
     { "field": "dateOfBirth", "message": "is required" },
     { "field": "hireDate", "message": "is required" },
@@ -3201,7 +3203,7 @@ class RepeatableTest {
                 .extract().path("id");
         cleanup.push("/departments/" + departmentId);
 
-        NewEmployee body = new NewEmployee("Rae", "Peat", TestData.uniqueEmail(), null,
+        NewEmployee body = new NewEmployee("Rae", "Peat", "FEMALE", TestData.uniqueEmail(), null,
                 LocalDate.of(1990, 1, 1), TestData.today().minusDays(7), 4, departmentId, 9, 90000);
         int employeeId = given().spec(Specs.api())
                 .body(body)
