@@ -259,7 +259,7 @@ Code 200
   "createdAt": "2023-04-03T09:00:00-04:00", "updatedAt": "2023-04-03T09:00:00-04:00"
 }
 Response headers
-content-type: application/json; charset=utf-8
+content-type: application/json
 x-request-id: 1b4e...`,
         },
         {
@@ -348,7 +348,7 @@ the base path (<code>/api/v1</code>), the resource path (<code>/employees/13</co
 <h3>Worked example: one error, read carefully</h3>
 <p>Send <code>DELETE /api/v1/departments/2</code>. Engineering still has people in it, so the answer is:</p>
 <pre><code>HTTP/1.1 409 Conflict
-Content-Type: application/problem+json; charset=utf-8
+Content-Type: application/problem+json
 X-Request-Id: 6c1f...
 
 {"type":"https://icehr.test/problems/department-has-employees","title":"Conflict","status":409,

@@ -19,6 +19,7 @@ class JobsApiTest {
         given().spec(Specs.api())
         .when().get("/jobs")
         .then().spec(Specs.ok())
+                .header("Content-Type", "application/json")  // exactly this, no "; charset=..."
                 .body("$", hasSize(15))                       // "$" is the whole (array) body
                 .body("title", hasItem("QA Analyst"))         // "title" on an array = every title
                 .body("minSalary", everyItem(greaterThan(0)));
