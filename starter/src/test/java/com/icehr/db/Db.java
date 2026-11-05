@@ -21,7 +21,7 @@ import java.util.Map;
  * <pre>
  * Db db = Db.reader();
  * Map&lt;String, Object&gt; row = db.queryOne("SELECT first_name, salary FROM employees WHERE id = ?", 13);
- * Integer count = db.scalar(Integer.class, "SELECT COUNT(*) FROM employees WHERE department_id = ?", 2);
+ * Long count = db.scalar(Long.class, "SELECT COUNT(*) FROM employees WHERE department_id = ?", 2); // COUNT(*) is a bigint: Long
  * </pre>
  *
  * <ul>

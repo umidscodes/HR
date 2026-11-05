@@ -8,10 +8,10 @@ const StatsSchema = registry.register("DepartmentStats", z.object({
   departmentName: z.string().openapi({ example: "Engineering" }),
   departmentCode: z.string().openapi({ example: "ENG" }),
   headcount: z.number().int().openapi({ example: 14, description: "ACTIVE employees only." }),
-  averageSalary: z.number().int().nullable().openapi({ example: 112143, description: "Rounded to the nearest dollar. Null when headcount is 0." }),
+  averageSalary: z.number().int().nullable().openapi({ example: 112357, description: "Rounded to the nearest dollar. Null when headcount is 0." }),
   minSalary: z.number().int().nullable().openapi({ example: 80000 }),
-  maxSalary: z.number().int().nullable().openapi({ example: 165000 }),
-  totalSalary: z.number().int().openapi({ example: 1570000 }),
+  maxSalary: z.number().int().nullable().openapi({ example: 172000 }),
+  totalSalary: z.number().int().openapi({ example: 1573000 }),
 }));
 
 export const router = Router();

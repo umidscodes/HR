@@ -134,7 +134,7 @@ Employees 20, 35 and 47 have **no phone number** (`phone: null`, SQL `IS NULL`).
 
 ### Leave requests
 
-35 requests (ids 1 to 35): 5 in 2025 and 30 in 2026/2027. 21 are APPROVED, 8 PENDING, 4 REJECTED and 2 CANCELLED.
+35 requests (ids 1 to 35): 5 in 2025 and 30 in 2026/2027. 22 are APPROVED, 8 PENDING, 3 REJECTED and 2 CANCELLED.
 
 The **8 pending requests** (ready for you to approve, reject or cancel):
 
@@ -430,6 +430,8 @@ The database runs whenever `npm run dev` (or `npm run db:start`) runs. Connect w
 | `departments` | `id`, `name`, `code`, `location`, `manager_id`, `created_at`, `updated_at` | `code` unique and `^[A-Z]{2,5}$`; `lower(name)` unique; `manager_id` → `employees.id` **ON DELETE SET NULL** |
 | `employees` | `id`, `first_name`, `last_name`, `email`, `phone`, `date_of_birth`, `hire_date`, `job_id`, `department_id`, `manager_id`, `salary`, `status`, `termination_date`, `created_at`, `updated_at` | `email` unique and lower case; `phone` NULL or `###-###-####`; `salary > 0`; `status` in (`ACTIVE`, `TERMINATED`); `termination_date` set exactly when TERMINATED; not their own manager; `hire_date > date_of_birth`; `job_id` → `jobs`; `department_id` → `departments` **ON DELETE RESTRICT**; `manager_id` → `employees` **ON DELETE RESTRICT** |
 | `leave_requests` | `id`, `employee_id`, `type`, `start_date`, `end_date`, `days`, `reason`, `status`, `approver_id`, `decision_reason`, `decided_at`, `created_at`, `updated_at` | `type` and `status` from the fixed lists; `end_date >= start_date`; `days > 0`; `employee_id` → `employees` **ON DELETE CASCADE**; `approver_id` → `employees` **ON DELETE SET NULL** |
+
+**Dates in SQL:** the database server runs in UTC, so `CURRENT_DATE` can be a different day from Ice HR's "today" late in the evening. When a query needs Toronto's today, write `(now() AT TIME ZONE 'America/Toronto')::date`.
 
 Some rules live **only in the API** (salary range, age at hire, leave balance, overlapping leave, who may approve). A row inserted directly with SQL can break them. That is a good discussion point: which layer should enforce which rule?
 

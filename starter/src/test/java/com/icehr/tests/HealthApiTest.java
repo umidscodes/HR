@@ -14,7 +14,9 @@ class HealthApiTest {
 
     @Test
     void ice_hr_is_up() {
-        // given: what we send  /  when: the call  /  then: what we expect back
+        // given: what we send  /  when: the call  /  then: what we expect back.
+        // The URL is written out here to show every part; real tests use Specs.api() (next test),
+        // so -DbaseUrl=... can point them somewhere else.
         given()
                 .baseUri("http://localhost:8080")
         .when()
