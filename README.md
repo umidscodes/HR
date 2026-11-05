@@ -166,6 +166,8 @@ Other handy ones: **6** (approved, already started, so it cannot be cancelled), 
 - **Created:** a `POST` that creates something returns **201** with a **`Location`** header (e.g. `/api/v1/employees/1001`) and the new record in the body.
 - **Deleted:** `DELETE` returns **204** with no body.
 - **Unknown fields** in a request body are ignored (sending `"id"` or `"status"` changes nothing).
+- **Unknown query parameters** are ignored too: a typo such as `?department=2` (instead of `departmentId`) returns every employee. Check that a filter really filtered.
+- **Invalid query parameters** give 400 with an `errors` list. The filters (`status`, `departmentId`, dates...) are checked first, then `page`, `size` and `sort`, so `?status=FIRED&size=101` reports only `status`.
 - Every response has an **`X-Request-Id`** header. Send your own `X-Request-Id` (letters, digits, `.`, `_`, `-`, up to 100 characters) and it is echoed back.
 
 ### Status codes
