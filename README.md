@@ -17,7 +17,7 @@ You use it to learn **REST Assured** (API testing in Java) and **SQL / JDBC** (d
 
 ## Contents
 
-1. [Setup](#1-setup-windows-macos-or-linux)
+1. [Setup](#1-setup-windows-macos-or-linux) and [updating to a new version](#11-updating-to-a-new-version)
 2. [What is inside](#2-what-is-inside)
 3. [Seed data and personas](#3-seed-data-and-personas)
 4. [The API](#4-the-api)
@@ -58,6 +58,68 @@ Press **Ctrl+C** to stop. Later starts take a few seconds. Your data is kept bet
 **Ports:** to use other ports, set `PORT` (app, default 8080) and/or `DB_PORT` (database, default 5434) before `npm run dev`. On Windows Command Prompt: `set PORT=8081`; in PowerShell: `$env:PORT="8081"`.
 
 Ice HR and Ice Bank use different ports (8080/5434 and 3000/5433), so both can run at the same time.
+
+### 1.1 Updating to a new version
+
+When your instructor says Ice HR has changed, update your copy. Your data, your tutorial progress and your own tests are kept.
+
+**1. Stop Ice HR.** Press **Ctrl+C** in the terminal running `npm run dev`.
+
+**2. Save your own work first.** In the Ice HR folder, run:
+
+```bash
+git status
+```
+
+- *"nothing to commit, working tree clean"*: go to step 3.
+- Files listed as **untracked** (new files you created, such as your own test classes): nothing to do. `git pull` does not touch them.
+- Files listed as **modified** (you changed a file that came with Ice HR, such as `EmployeesApiTest.java` or `local.properties`): put your changes aside, update, then bring them back:
+
+```bash
+git stash
+git pull
+git stash pop
+```
+
+If `git stash pop` reports a **conflict**, the same lines changed on both sides. Open the file, keep the version you want between the `<<<<<<<` and `>>>>>>>` markers, delete the markers, and save. Tip: write your own tests in **new** files (for example `starter/src/test/java/com/icehr/mytests/`) and you will never get conflicts.
+
+**3. Get the new version.**
+
+```bash
+git pull
+npm install
+```
+
+`npm install` is quick when nothing changed. Run it every time, because a new version may need a new library.
+
+**4. Start Ice HR.**
+
+```bash
+npm run dev
+```
+
+If the database changed, you see `[db] Applying migration ...` lines. These update your database in place and **keep your data**. Then check http://localhost:8080/api/v1/health.
+
+**5. Update the starter project.** In IntelliJ, open the Maven tool window and click **Reload All Maven Projects**, then run `mvn test` in the `starter` folder. If tests that worked before now fail to compile, read the version notes below: a model class (such as `NewEmployee`) may have a new field.
+
+**6. Refresh the tutorials.** Reload http://localhost:8080/tutorials/ with **Ctrl+F5**. Your ticks, notes and quiz scores stay, because they are saved in your browser.
+
+**Optional: start from clean data.** To get exactly the data the README describes (for example new seed employees), run `npm run reset`. This deletes everything you created.
+
+| Problem after updating | Fix |
+| --- | --- |
+| `git pull` says *Your local changes would be overwritten* | You skipped step 2. Run `git stash`, `git pull`, `git stash pop`. |
+| `git pull` says *You have divergent branches* | You committed on `main` yourself. Run `git pull --no-rebase` (Git then merges). If it opens an editor for the merge message, save and close it (in Vim: type `:wq` and press Enter). |
+| `Migration ... failed` when starting | Your database is in an unexpected state. Run `npm run reset` (this resets your data). If that fails too, stop Ice HR, delete the `.icehr` folder, and run `npm run dev` again. |
+| `Cannot find module ...` | You skipped `npm install`. |
+| Tests fail with `400 VALIDATION_FAILED` on a field you never sent | The new version added a required field. Check the version notes and add the field to your request bodies. |
+
+#### Version notes
+
+| Version | What changed | What you need to do |
+| --- | --- | --- |
+| Gender | Employees have a required `gender` field: `MALE` or `FEMALE` (rule E1a). New filter `GET /employees?gender=`. New database column `employees.gender` (NOT NULL, CHECK `employees_gender_valid`), also in `v_employee_directory`. The seed has 31 women and 29 men. | Add `"gender"` to every body you send to `POST /employees` or `PUT /employees/{id}`. If you build `new NewEmployee(...)` yourself, gender is the third argument (`"Jane", "Doe", "FEMALE", email, ...`). Add `gender` to any SQL `INSERT INTO employees`. Your existing data gets genders automatically; employees you created yourself are set to `MALE`. |
+| First release | Ice HR, the starter project, Postman collection and tutorials. | Follow section 1. |
 
 ## 2. What is inside
 
