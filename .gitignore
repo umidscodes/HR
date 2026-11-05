@@ -1,0 +1,14 @@
+node_modules/
+.icehr/
+*.tsbuildinfo
+.env
+.env.local
+coverage/
+*.log
+.DS_Store
+# Java starter project
+starter/target/
+starter/.idea/
+starter/*.iml
+starter/allure-results/
+starter/src/test/resources/config/qa.properties

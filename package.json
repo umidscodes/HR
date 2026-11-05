@@ -1,0 +1,37 @@
+{
+  "name": "ice-hr",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ice HR - a small, login-free HR app built as a first target for REST Assured and SQL/JDBC practice.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx scripts/dev.ts",
+    "start": "tsx scripts/dev.ts",
+    "reset": "tsx scripts/reset.ts",
+    "db:start": "tsx scripts/db-only.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "postman": "node scripts/postman/build.mjs"
+  },
+  "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^9.1.0",
+    "embedded-postgres": "^16.15.0-beta.19",
+    "express": "^5.3.0",
+    "luxon": "^3.7.2",
+    "pg": "^8.23.1",
+    "swagger-ui-dist": "^5.34.1",
+    "tsx": "^4.23.15",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/luxon": "^3.7.6",
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "typescript": "5.9",
+    "vitest": "4.0.18"
+  }
+}
