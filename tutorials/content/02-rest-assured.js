@@ -3359,5 +3359,305 @@ mvn test -Dgroups=destructive -DexcludedGroups=`,
         },
       ],
     },
+    // ------------------------------------------------------------------------------------------
+    {
+      id: "common-mistakes",
+      title: "Common mistakes and how to spot them",
+      summary: "Twelve mistakes almost everyone makes with REST Assured, the exact symptom each one gives against Ice HR, and the fix.",
+      body: `
+<p>Most failing tests in your first weeks are not bugs in Ice HR. They are a handful of mistakes that everybody makes, and each one leaves a
+recognisable fingerprint: a strange message, a test that passes when it should not, or one that fails only on the second run. Learn the fingerprints and
+you will fix them in seconds instead of an hour. Every symptom below is the real output from Ice HR and the starter project.</p>
+
+<h3>Quick lookup: symptom to mistake</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>You see</th><th>Most likely</th><th>#</th></tr></thead>
+<tbody>
+<tr><td><code>.contains("...")</code> is always false; printing the body shows <code>RestAssuredResponseImpl@3c35c345</code></td><td>Used <code>body().toString()</code> instead of <code>asString()</code></td><td>1</td></tr>
+<tr><td>415 <code>UNSUPPORTED_MEDIA_TYPE</code>, "received: text/plain; charset=ISO-8859-1"</td><td>No content type on a request with a body</td><td>2</td></tr>
+<tr><td><code>Expected: 80000  Actual: &lt;80000&gt;</code> (they look the same!)</td><td>Compared a number with a string</td><td>3</td></tr>
+<tr><td><code>Expected: &lt;60L&gt;  Actual: &lt;60&gt;</code></td><td>Compared with a <code>long</code></td><td>4</td></tr>
+<tr><td>A <code>nullValue()</code> check passes for a field you misspelled</td><td>Typo in a JSON path</td><td>5</td></tr>
+<tr><td>Two ids that print the same are "not equal"</td><td><code>==</code> on <code>Integer</code></td><td>6</td></tr>
+<tr><td><code>NullPointerException: Cannot invoke "java.lang.Integer.intValue()"</code></td><td>Extracted a value from an error response</td><td>7</td></tr>
+<tr><td>404 when you GET the <code>Location</code> you just received</td><td><code>/api/v1</code> added twice</td><td>8</td></tr>
+<tr><td><code>NullPointerException</code> before any request is sent</td><td><code>Map.of(...)</code> with a <code>null</code> value</td><td>9</td></tr>
+<tr><td>400 <code>salary</code> "must be a number"</td><td>Number sent as a string</td><td>10</td></tr>
+<tr><td>Green on the first run, red on the second (409, 422, wrong counts)</td><td>Fixed test data, or no cleanup</td><td>11</td></tr>
+<tr><td>A test breaks although the behaviour did not change</td><td>Asserted on <code>detail</code> text or the exact header text</td><td>12</td></tr>
+</tbody></table></div>
+
+<h3>1. <code>body().toString()</code> is not the body</h3>
+<p><code>response.body().toString()</code> does not return the JSON. It returns Java's default description of the object, such as
+<code>io.restassured.internal.RestAssuredResponseImpl@3c35c345</code>, so <code>.contains("Tremblay")</code> is <strong>always false</strong>, whatever the server sent.
+Use <code>response.asString()</code> (or <code>response.body().asString()</code>, the same thing). Even better, let REST Assured do it:
+<code>.then().body(containsString("Tremblay"))</code>, which also prints the response when it fails.</p>
+<pre><code>// Wrong: always false
+assertTrue(response.body().toString().contains("Tremblay"));
+// Right
+assertThat(response.asString()).contains("Tremblay");</code></pre>
+<p>A related point: searching the whole body for text is a weak check. <code>"Tremblay"</code> could appear in any field. Prefer a JSON path:
+<code>.body("lastName", equalTo("Tremblay"))</code>.</p>
+
+<h3>2. Forgetting the content type</h3>
+<p>Without <code>.contentType(ContentType.JSON)</code>, REST Assured sends a String body as <code>text/plain; charset=ISO-8859-1</code>. Ice HR refuses it with
+415 <code>UNSUPPORTED_MEDIA_TYPE</code> and tells you exactly that: <em>"Send the request body as JSON with the header Content-Type: application/json (received:
+text/plain; charset=ISO-8859-1)"</em>. Fix: start every request with <code>given().spec(Specs.api())</code>, which sets it for you.</p>
+
+<h3>3. A number is not a string</h3>
+<p>JSON has types: <code>80000</code> is a number, <code>"80000"</code> is a string. JsonPath gives you a Java <code>Integer</code> for the first, so
+<code>.body("salary", equalTo("80000"))</code> fails with the most confusing message in REST Assured:</p>
+<pre><code>JSON path salary doesn't match.
+Expected: 80000
+  Actual: &lt;80000&gt;</code></pre>
+<p>The angle brackets around <code>&lt;80000&gt;</code> mean "a number"; no brackets mean a string. Fix: <code>equalTo(80000)</code>. The same goes for ids, <code>days</code>,
+<code>totalElements</code>, <code>minSalary</code> and every other number in Ice HR.</p>
+
+<h3>4. <code>60L</code> is not <code>60</code></h3>
+<p>For whole numbers that fit, JsonPath returns <code>Integer</code>, not <code>Long</code>. <code>.body("totalElements", equalTo(60L))</code> fails with
+<code>Expected: &lt;60L&gt;  Actual: &lt;60&gt;</code>. Write <code>equalTo(60)</code>. (When you read into the <code>Page</code> record, <code>totalElements</code> is a
+<code>long</code>, so there <code>assertThat(page.totalElements()).isEqualTo(60L)</code> is right. The type depends on where the value comes from.)</p>
+
+<h3>5. A typo in a path quietly gives <code>null</code></h3>
+<p>Ice HR's fields are camelCase. <code>.body("termination_date", nullValue())</code> <strong>passes</strong>: there is no field called <code>termination_date</code>,
+so the path returns <code>null</code>, which is exactly what you asked for. The test proves nothing. When "null" is what you expect, also prove the field exists:
+<code>.body("$", hasKey("terminationDate"))</code>, or check the whole object against the JSON schema. Copy field names from Swagger instead of typing them.</p>
+
+<h3>6. <code>==</code> on ids</h3>
+<p><code>Integer</code> is an object. <code>==</code> compares whether two variables point to the <em>same object</em>, not whether the numbers are equal. Java reuses objects
+only for -128 to 127, so seeded ids seem to work, and then your new ids from 1001 break it:
+<code>Integer a = ...path("id"); Integer b = ...path("id");</code> printed <code>1036 == 1036 -&gt; false</code>. Use <code>a.equals(b)</code>,
+<code>assertThat(a).isEqualTo(b)</code>, or store ids in <code>int</code>.</p>
+
+<h3>7. Extracting before checking the status</h3>
+<p><code>int id = given()...post("/employees").then().extract().path("id");</code> works only when the hire succeeds. If it gets a 422, the error body has no
+<code>id</code>, the path returns <code>null</code>, and Java fails while turning <code>null</code> into an <code>int</code>:</p>
+<pre><code>NullPointerException: Cannot invoke "java.lang.Integer.intValue()" because the return value
+of "io.restassured.response.ExtractableResponse.path(String, String[])" is null</code></pre>
+<p>That message hides the real problem (a 422 with a useful <code>code</code>). Always check the status <em>before</em> extracting:
+<code>.then().statusCode(201).extract().path("id")</code>. Then a failure says "Expected status code &lt;201&gt; but was &lt;422&gt;" and prints the error body.</p>
+
+<h3>8. Following <code>Location</code> with <code>Specs.api()</code></h3>
+<p>The <code>Location</code> header already contains the full path: <code>/api/v1/employees/1037</code>. <code>Specs.api()</code> adds its base path <code>/api/v1</code> in
+front, so <code>given().spec(Specs.api()).get(location)</code> requests <code>/api/v1/api/v1/employees/1037</code> and gets 404. Either use the id
+(<code>.get("/employees/{id}", id)</code>), or call the location without the base path: <code>given().baseUri(Config.baseUrl()).get(location)</code>.</p>
+
+<h3>9. <code>Map.of</code> and <code>null</code></h3>
+<p><code>Map.of("managerId", null)</code> throws <code>NullPointerException</code> in your own code, before REST Assured sends anything: <code>Map.of</code> does not allow
+<code>null</code> keys or values. To send <code>{"managerId": null}</code> (for example to clear a manager with PATCH), use a <code>HashMap</code>:
+<code>Map&lt;String, Object&gt; body = new HashMap&lt;&gt;(); body.put("managerId", null);</code>.</p>
+
+<h3>10. Sending numbers as strings</h3>
+<p>The reverse of mistake 3, in the request. <code>{"salary": "95000"}</code> gives 400 with <code>salary</code> "must be a number". In a <code>Map</code>, put
+<code>95000</code>, not <code>"95000"</code>; in a String body, no quotes around numbers.</p>
+
+<h3>11. Tests that only pass once</h3>
+<ul>
+<li><strong>Fixed emails</strong>: the second run gets 409 <code>EMAIL_TAKEN</code>. Use <code>TestData.uniqueEmail()</code>.</li>
+<li><strong>Fixed dates</strong>: <code>"2026-12-14"</code> becomes 422 <code>START_DATE_IN_PAST</code> once that day has passed. Use <code>TestData.futureMonday(2)</code>.</li>
+<li><strong>No cleanup</strong>: your leftovers change other tests' numbers ("expected 60 but was 61"). Delete what you create in <code>@AfterEach</code>, or in a
+<code>finally</code> block.</li>
+<li><strong>Depending on another test</strong>: a test that only passes after another one ran will break when it runs alone or in a different order. Each test
+creates what it needs.</li>
+</ul>
+
+<h3>12. Asserting on the wrong thing</h3>
+<ul>
+<li><strong><code>detail</code> instead of <code>code</code></strong>: <code>detail</code> is a sentence for people and may be reworded. <code>code</code>
+(<code>SALARY_OUT_OF_RANGE</code>) is the contract.</li>
+<li><strong>The exact header text</strong>: <code>.header("Content-Type", "application/json; charset=utf-8")</code> breaks if the server stops sending the charset,
+as Ice HR did in one update, although the response is the same JSON. <code>.contentType(ContentType.JSON)</code> checks what matters.</li>
+<li><strong>Not asserting at all</strong>: a test with only <code>given().get(...)</code> and no <code>then()</code> checks passes even on a 500. Every test needs at least
+a status check.</li>
+</ul>
+
+<div class="callout"><p><strong>When a test fails, read the first lines.</strong> Is it an <code>AssertionError</code> (your expectation and the response differ:
+compare them), a <code>NullPointerException</code> (usually mistake 7 or 9), or <code>Connection refused</code> (Ice HR is not running)? The starter prints the full
+request and response under every failed check; scroll up to it before you change anything.</p></div>`,
+      examples: [
+        {
+          title: "The right way, for each mistake (CommonMistakesTest.java)",
+          lang: "java",
+          code: `
+package com.icehr.tests;
+
+import com.icehr.api.Specs;
+import com.icehr.config.Config;
+import com.icehr.model.NewEmployee;
+import com.icehr.model.Page;
+import com.icehr.model.Employee;
+import io.restassured.common.mapper.TypeRef;
+import io.restassured.http.ContentType;
+import io.restassured.response.Response;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import static io.restassured.RestAssured.given;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.nullValue;
+
+@Tag("api")
+class CommonMistakesTest {
+
+    @Test
+    void body_text_is_asString_not_toString() {                     // 1
+        Response response = given().spec(Specs.api()).get("/employees/5");
+
+        assertThat(response.body().toString()).doesNotContain("Tremblay");   // the trap
+        assertThat(response.asString()).contains("Tremblay", "Chloé");       // the fix
+        response.then().body(containsString("Tremblay"));                    // or let REST Assured check
+    }
+
+    @Test
+    void numbers_are_compared_as_numbers() {                        // 3 and 4
+        given().spec(Specs.api()).get("/employees/13")
+        .then().body("salary", equalTo(80000));
+
+        given().spec(Specs.api()).get("/employees")
+        .then().body("totalElements", equalTo(60));
+
+        Page<Employee> page = given().spec(Specs.api()).get("/employees").as(new TypeRef<Page<Employee>>() { });
+        assertThat(page.totalElements()).isEqualTo(60L);           // a long here: it comes from the record
+    }
+
+    @Test
+    void a_null_check_also_proves_the_field_exists() {              // 5
+        given().spec(Specs.api()).get("/employees/13")
+        .then()
+                .body("$", hasKey("terminationDate"))
+                .body("terminationDate", nullValue());
+    }
+
+    @Test
+    void ids_are_compared_with_equals_and_status_is_checked_first() {   // 6, 7 and 8
+        Response created = given().spec(Specs.api())
+                .body(NewEmployee.valid())
+        .when().post("/employees")
+        .then().statusCode(201)                                     // status first, then extract
+                .extract().response();
+        Integer id = created.path("id");
+        try {
+            String location = created.header("Location");          // "/api/v1/employees/1001"
+            Integer again = given().baseUri(Config.baseUrl())       // no base path: Location is complete
+                    .get(location)
+                    .then().statusCode(200)
+                    .extract().path("id");
+
+            assertThat(again).isEqualTo(id);                        // equals, never ==
+        } finally {
+            given().spec(Specs.api()).delete("/employees/{id}", id).then().statusCode(204);
+        }
+    }
+
+    @Test
+    void null_values_need_a_HashMap_and_numbers_stay_numbers() {    // 9 and 10
+        int id = given().spec(Specs.api()).body(NewEmployee.valid())
+                .post("/employees").then().statusCode(201).extract().path("id");
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("phone", null);                                    // Map.of("phone", null) would throw
+        body.put("salary", 81000);                                  // a number, not "81000"
+        try {
+            given().spec(Specs.api())
+                    .body(body)
+            .when().patch("/employees/{id}", id)
+            .then().statusCode(200)
+                    .body("phone", nullValue())
+                    .body("salary", equalTo(81000));
+        } finally {
+            given().spec(Specs.api()).delete("/employees/{id}", id).then().statusCode(204);
+        }
+    }
+
+    @Test
+    void assert_on_code_and_on_the_type_of_content() {              // 2 and 12
+        given().baseUri(Config.baseUrl())
+                .body("{\\"name\\": \\"No Type\\", \\"code\\": \\"NT\\", \\"location\\": \\"Toronto\\"}")   // no content type
+        .when().post("/api/v1/departments")
+        .then()
+                .statusCode(415)
+                .contentType("application/problem+json")
+                .body("code", equalTo("UNSUPPORTED_MEDIA_TYPE"));
+
+        given().spec(Specs.api()).get("/jobs")
+        .then().contentType(ContentType.JSON);                      // not the exact header text
+    }
+}`,
+        },
+        {
+          title: "Spot the mistakes (there are at least six)",
+          lang: "java",
+          code: `
+@Test
+void hire_and_check() {
+    Map<String, Object> body = Map.of(
+            "firstName", "Sam", "lastName", "Lee", "gender", "MALE",
+            "email", "sam.lee@icehr.test",
+            "dateOfBirth", "1994-03-02", "hireDate", "2025-01-06",
+            "jobId", 4, "departmentId", 2, "salary", "90000");
+
+    int id = given().baseUri("http://localhost:8080").body(body)
+            .post("/api/v1/employees")
+            .then().extract().path("id");
+
+    given().spec(Specs.api()).get("/employees/" + id)
+            .then().body("salary", equalTo("90000"))
+                   .body("terminated_date", nullValue());
+}`,
+        },
+        {
+          title: "Your checklist before you push a test",
+          lang: "text",
+          code: `
+[ ] Starts with given().spec(Specs.api())          (base URL, /api/v1, JSON content type)
+[ ] Checks the status code before extracting anything
+[ ] Numbers compared as numbers: equalTo(80000), equalTo(60)
+[ ] Error tests assert "code", not "detail"
+[ ] Field names copied from Swagger; null checks also use hasKey(...)
+[ ] Unique emails (TestData.uniqueEmail()) and dates from today (TestData.futureMonday(...))
+[ ] Deletes everything it created (@AfterEach or finally)
+[ ] Passes when run alone, and twice in a row`,
+        },
+      ],
+      exercises: [
+        "Copy <code>CommonMistakesTest</code> into <code>starter/src/test/java/com/icehr/tests</code> and run it. Then change <code>equalTo(80000)</code> to <code>equalTo(\"80000\")</code>, run it again, and copy the failure message into your notes, explaining the angle brackets.",
+        "Find at least six mistakes in the \"Spot the mistakes\" example. Write the corrected test, run it twice in a row, and make sure both runs pass and nothing is left behind.",
+        "Write a test that proves mistake 6: hire one employee, read its id twice into two <code>Integer</code> variables, and show with <code>assertThat</code> that <code>==</code> is false but <code>equals</code> is true. Delete the employee afterwards.",
+        "Run every test in the starter project once with Ice HR stopped and once with it running. Write down the first line of the error you get when it is stopped, so you recognise it next time.",
+        "Go through your own tests from the earlier lessons with the checklist above. Fix at least two mistakes you find and note which ones they were.",
+      ],
+      quiz: [
+        {
+          q: `<code>assertTrue(response.body().toString().contains("Ethan"))</code> fails, although the response is Ethan's record. Why?`,
+          options: [`Ice HR sends the body without a charset`, `<code>toString()</code> returns the object's description (<code>RestAssuredResponseImpl@...</code>), not the JSON; use <code>asString()</code>`, `<code>contains</code> is case-sensitive`, `The body is only available after <code>then()</code>`],
+          answer: 1,
+          explain: `<code>body().toString()</code> never contains the response text, with or without a charset. <code>asString()</code> returns the body as a String, decoded as UTF-8.`,
+        },
+        {
+          q: `A check fails with <code>Expected: 80000</code> and <code>Actual: &lt;80000&gt;</code>. What is wrong?`,
+          options: [`Ice HR returned the wrong salary`, `The salary is too low`, `JsonPath needs <code>equalTo(80000L)</code>`, `The test compares with the String <code>"80000"</code>, but the JSON value is a number`],
+          answer: 3,
+          explain: `Angle brackets mark the actual value as a number. Write <code>equalTo(80000)</code>, without quotes.`,
+        },
+        {
+          q: `<code>int id = given().spec(Specs.api()).body(body).post("/employees").then().extract().path("id");</code> throws a <code>NullPointerException</code>. What should you change first?`,
+          options: [`Add <code>.statusCode(201)</code> before <code>.extract()</code>, so the real problem (for example a 422) is reported`, `Use <code>long</code> instead of <code>int</code>`, `Add a <code>Thread.sleep</code>`, `Use <code>Map.of</code> for the body`],
+          answer: 0,
+          explain: `The hire failed, so the error body has no <code>id</code>. Checking the status first turns a confusing NullPointerException into "Expected status code &lt;201&gt; but was &lt;422&gt;", with the error body printed.`,
+        },
+        {
+          q: `Your test passed yesterday and today fails with 409 <code>EMAIL_TAKEN</code>. The most likely cause?`,
+          options: [`Ice HR has a bug`, `The test uses a fixed email, and yesterday's employee was never deleted`, `The email is not in lower case`, `Emails expire after a day`],
+          answer: 1,
+          explain: `Fixed data plus no cleanup: the first run created the employee and left it there. Use <code>TestData.uniqueEmail()</code> and delete what you create.`,
+        },
+      ],
+    },
   ],
 });
