@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Ice HR starter test project: API tests with REST Assured and database tests with JDBC.
+  Everything lives in src/test: this project only contains tests and the helpers they use.
+
+  Common commands (run them in this starter/ folder, with Ice HR running):
+    mvn test                          every test except @Tag("destructive")
+    mvn test -Dgroups=api             only @Tag("api") tests (or db)
+    mvn test -Dtest=EmployeesApiTest  one test class
+    mvn test -DbaseUrl=http://localhost:8081   point at another port
+  Windows PowerShell: quote every -D flag, for example  mvn test "-Dgroups=api"
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.icehr</groupId>
+    <artifactId>icehr-tests</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+    <name>Ice HR tests (starter)</name>
+
+    <properties>
+        <!-- Compile for Java 17 so the project works on JDK 17 and JDK 21. -->
+        <maven.compiler.release>17</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <!-- There is no src/main: everything is test code. -->
+        <maven.main.skip>true</maven.main.skip>
+
+        <!-- Tests tagged "destructive" (they reset all data) are skipped unless you clear this: -DexcludedGroups= -->
+        <excludedGroups>destructive</excludedGroups>
+
+        <!-- Library versions -->
+        <junit.version>5.14.4</junit.version>
+        <rest-assured.version>5.5.7</rest-assured.version>
+        <jackson.version>2.22.4</jackson.version>
+        <assertj.version>3.27.7</assertj.version>
+        <postgresql.version>42.7.14</postgresql.version>
+        <slf4j.version>2.0.20</slf4j.version>
+
+        <!-- Plugin versions -->
+        <surefire.version>3.6.1</surefire.version>
+        <compiler-plugin.version>3.14.1</compiler-plugin.version>
+        <resources-plugin.version>3.5.0</resources-plugin.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>${junit.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Test runner: JUnit 5 (also brings @ParameterizedTest) -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- REST API testing, plus JSON schema validation -->
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <version>${rest-assured.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>${rest-assured.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- JSON to Java objects and back, with LocalDate / OffsetDateTime support -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Fluent assertions: assertThat(x).isEqualTo(y) -->
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Database: the PostgreSQL JDBC driver -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgresql.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Quiets the "No SLF4J providers" warning some libraries print. -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-nop</artifactId>
+            <version>${slf4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${compiler-plugin.version}</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>${resources-plugin.version}</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${surefire.version}</version>
+                <configuration>
+                    <!-- groups / excludedGroups come from -Dgroups=... and the excludedGroups property above. -->
+                    <excludedGroups>${excludedGroups}</excludedGroups>
+                    <!-- Show the reason for a failure in the console, not only in target/surefire-reports. -->
+                    <trimStackTrace>false</trimStackTrace>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

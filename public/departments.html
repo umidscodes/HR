@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ice HR - Departments</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<main>
+  <h1>Departments</h1>
+  <div id="message" hidden></div>
+  <div class="table-wrap card" style="padding:0">
+    <table>
+      <thead><tr><th>Id</th><th>Name</th><th>Code</th><th>Location</th><th>Manager</th><th class="num">Active employees</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <form class="card" id="form" novalidate>
+    <h2 id="form-title">Add a department</h2>
+    <div class="grid">
+      <div><label for="name">Name</label><input id="name" name="name"></div>
+      <div><label for="code">Code (2 to 5 capital letters)</label><input id="code" name="code" placeholder="ENG"></div>
+      <div><label for="location">Location</label><input id="location" name="location"></div>
+      <div><label for="managerId">Manager id (optional)</label><input id="managerId" name="managerId" data-type="int" data-optional="1" inputmode="numeric"></div>
+    </div>
+    <div class="actions">
+      <button type="submit" id="save">Add department</button>
+      <button type="button" class="secondary" id="cancel-edit" hidden>Cancel editing</button>
+    </div>
+  </form>
+</main>
+<script src="/app.js"></script>
+<script>
+  header("departments");
+  const form = document.getElementById("form");
+  let editing = null, list = [];
+
+  async function load() {
+    try {
+      list = await api("GET", "/departments");
+      document.getElementById("rows").innerHTML = list.map((d) => `<tr>
+        <td>${d.id}</td><td><a href="/employees?departmentId=${d.id}">${esc(d.name)}</a></td><td>${esc(d.code)}</td><td>${esc(d.location)}</td>
+        <td>${d.managerId ? `<a href="/employee?id=${d.managerId}">Employee ${d.managerId}</a>` : '<span class="muted">none</span>'}</td>
+        <td class="num">${d.employeeCount}</td>
+        <td><button type="button" class="secondary small" data-edit="${d.id}">Edit</button>
+            <button type="button" class="danger small" data-delete="${d.id}">Delete</button></td></tr>`).join("");
+    } catch (e) { showMessage("error", e); }
+  }
+
+  function startEdit(d) {
+    editing = d ? d.id : null;
+    form.name.value = d?.name ?? ""; form.code.value = d?.code ?? ""; form.location.value = d?.location ?? ""; form.managerId.value = d?.managerId ?? "";
+    document.getElementById("form-title").textContent = d ? `Edit department ${d.id}` : "Add a department";
+    document.getElementById("save").textContent = d ? "Save changes" : "Add department";
+    document.getElementById("cancel-edit").hidden = !d;
+    if (d) form.scrollIntoView({ block: "nearest" });
+  }
+
+  document.getElementById("rows").addEventListener("click", async (ev) => {
+    const t = ev.target;
+    if (t.dataset.edit) startEdit(list.find((d) => String(d.id) === t.dataset.edit));
+    if (t.dataset.delete) {
+      if (!confirm(`Delete department ${t.dataset.delete}?`)) return;
+      clearMessage();
+      try { await api("DELETE", `/departments/${t.dataset.delete}`); showMessage("ok", "Department deleted."); load(); }
+      catch (e) { showMessage("error", e); }
+    }
+  });
+  document.getElementById("cancel-edit").addEventListener("click", () => startEdit(null));
+
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    clearMessage();
+    try {
+      if (editing) await api("PUT", `/departments/${editing}`, formData(form));
+      else await api("POST", "/departments", formData(form));
+      showMessage("ok", editing ? "Department saved." : "Department added.");
+      startEdit(null);
+      load();
+    } catch (e) { showMessage("error", e); }
+  });
+  load();
+</script>
+</body>
+</html>

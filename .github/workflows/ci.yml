@@ -1,0 +1,53 @@
+# Proves a fresh clone installs and runs on Windows (the students' platform) and Linux:
+# the app's smoke tests, then the Java starter project and the Postman collection against the running app.
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Smoke tests (embedded PostgreSQL, migrations, every business rule)
+        run: npm test
+        timeout-minutes: 10
+      - name: Start Ice HR and wait for it
+        shell: bash
+        run: |
+          npm run dev > app.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl -sf http://localhost:8080/api/v1/health; then echo; echo "Ice HR is up"; exit 0; fi
+            sleep 2
+          done
+          cat app.log
+          exit 1
+      - name: Starter project (REST Assured and JDBC examples)
+        working-directory: starter
+        run: mvn -B -ntp test
+        timeout-minutes: 10
+      - name: Postman collection (Newman)
+        run: npx -y newman@6.2.3 run postman/IceHR.postman_collection.json -e postman/IceHR-local.postman_environment.json
+      - name: App log
+        if: always()
+        shell: bash
+        run: cat app.log || true

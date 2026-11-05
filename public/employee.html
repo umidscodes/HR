@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ice HR - Employee</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<main>
+  <p><a href="/employees">&larr; All employees</a></p>
+  <h1 id="title">Employee</h1>
+  <div id="message" hidden></div>
+
+  <form class="card" id="form" novalidate>
+    <p class="hint" id="status-line"></p>
+    <div class="grid">
+      <div><label for="firstName">First name</label><input id="firstName" name="firstName" maxlength="60"></div>
+      <div><label for="lastName">Last name</label><input id="lastName" name="lastName" maxlength="60"></div>
+      <div><label for="email">Email</label><input id="email" name="email" type="email"></div>
+      <div><label for="phone">Phone (optional)</label><input id="phone" name="phone" data-optional="1" placeholder="416-555-0100"></div>
+      <div><label for="dateOfBirth">Date of birth</label><input id="dateOfBirth" name="dateOfBirth" type="date"></div>
+      <div><label for="hireDate">Hire date</label><input id="hireDate" name="hireDate" type="date"></div>
+      <div><label for="jobId">Job</label><select id="jobId" name="jobId" data-type="int"></select></div>
+      <div><label for="departmentId">Department</label><select id="departmentId" name="departmentId" data-type="int"></select></div>
+      <div><label for="managerId">Manager id (optional)</label><input id="managerId" name="managerId" data-type="int" data-optional="1" inputmode="numeric"></div>
+      <div><label for="salary">Annual salary</label><input id="salary" name="salary" data-type="int" inputmode="numeric"></div>
+    </div>
+    <p class="hint" id="salary-range"></p>
+    <div class="actions">
+      <button type="submit" id="save">Save</button>
+      <button type="button" class="secondary" id="terminate" hidden>Terminate...</button>
+      <button type="button" class="danger" id="delete" hidden>Delete</button>
+    </div>
+  </form>
+
+  <div class="grid" id="extra" hidden>
+    <div class="card">
+      <h2>Leave balance <span class="muted" id="balance-year"></span></h2>
+      <table><thead><tr><th>Type</th><th class="num">Allowance</th><th class="num">Used</th><th class="num">Pending</th><th class="num">Remaining</th></tr></thead>
+        <tbody id="balance"></tbody></table>
+    </div>
+    <div class="card">
+      <h2>Direct reports</h2>
+      <ul id="reports"></ul>
+    </div>
+  </div>
+  <div class="card" id="leave-card" hidden>
+    <h2>Leave requests</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Id</th><th>Type</th><th>From</th><th>To</th><th class="num">Days</th><th>Status</th><th>Decided by</th></tr></thead>
+      <tbody id="leave"></tbody>
+    </table></div>
+    <p><a id="new-leave" href="/leave">Request leave for this employee</a></p>
+  </div>
+</main>
+
+<dialog id="terminate-dialog">
+  <form method="dialog" id="terminate-form">
+    <h2>Terminate employee</h2>
+    <p class="hint">Pending leave and approved leave after the last day will be cancelled.</p>
+    <label for="terminationDate">Last day (termination date)</label>
+    <input id="terminationDate" name="terminationDate" type="date">
+    <div class="actions">
+      <button type="submit" value="ok" class="danger">Terminate</button>
+      <button type="submit" value="cancel" class="secondary">Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="/app.js"></script>
+<script>
+  header("employees");
+  const form = document.getElementById("form");
+  const id = qs("id");
+  let jobs = [];
+
+  function showRange() {
+    const j = jobs.find((x) => String(x.id) === form.jobId.value);
+    document.getElementById("salary-range").textContent = j ? `Salary range for ${j.title}: ${money(j.minSalary)} to ${money(j.maxSalary)}.` : "";
+  }
+
+  function fill(e) {
+    for (const k of ["firstName", "lastName", "email", "phone", "dateOfBirth", "hireDate", "jobId", "departmentId", "managerId", "salary"]) {
+      form[k].value = e[k] ?? "";
+    }
+    document.getElementById("title").textContent = `${e.firstName} ${e.lastName}`;
+    document.getElementById("status-line").innerHTML = `Employee ${e.id} ${badge(e.status)}` +
+      (e.terminationDate ? ` since ${esc(e.terminationDate)}` : "") + ` &middot; last changed ${esc(e.updatedAt)}`;
+    const terminated = e.status === "TERMINATED";
+    for (const el of form.elements) if (el.name) el.disabled = terminated;
+    document.getElementById("save").hidden = terminated;
+    document.getElementById("terminate").hidden = terminated;
+    document.getElementById("delete").hidden = false;
+    showRange();
+  }
+
+  async function loadRelated() {
+    const [bal, reports, leave] = await Promise.all([
+      api("GET", `/employees/${id}/leave-balance`),
+      api("GET", `/employees/${id}/reports`),
+      api("GET", `/leave-requests?employeeId=${id}&sort=startDate,desc&size=100`),
+    ]);
+    document.getElementById("balance-year").textContent = `(${bal.year})`;
+    document.getElementById("balance").innerHTML = bal.balances.map((b) =>
+      `<tr><td>${b.type}</td><td class="num">${b.allowance}</td><td class="num">${b.used}</td><td class="num">${b.pending}</td><td class="num"><strong>${b.remaining}</strong></td></tr>`).join("");
+    document.getElementById("reports").innerHTML = reports.map((r) =>
+      `<li><a href="/employee?id=${r.id}">${esc(r.firstName)} ${esc(r.lastName)}</a> ${r.status === "ACTIVE" ? "" : badge(r.status)}</li>`).join("") || "<li class='muted'>Nobody reports to this employee.</li>";
+    document.getElementById("leave").innerHTML = leave.content.map((l) =>
+      `<tr><td>${l.id}</td><td>${l.type}</td><td>${l.startDate}</td><td>${l.endDate}</td><td class="num">${l.days}</td><td>${badge(l.status)}</td><td>${l.approverId ?? ""}</td></tr>`).join("")
+      || `<tr><td colspan="7" class="muted">No leave requests.</td></tr>`;
+    document.getElementById("new-leave").href = `/leave?employeeId=${id}`;
+    document.getElementById("extra").hidden = false;
+    document.getElementById("leave-card").hidden = false;
+  }
+
+  async function load() {
+    try {
+      jobs = await fillSelect(form.jobId, "/jobs", (j) => j.title);
+      await fillSelect(form.departmentId, "/departments", (d) => d.name);
+      if (id) {
+        fill(await api("GET", `/employees/${id}`));
+        await loadRelated();
+      } else {
+        document.getElementById("title").textContent = "Add employee";
+        document.getElementById("status-line").textContent = "Every field except phone and manager is required.";
+        form.reset();
+        showRange();
+      }
+    } catch (e) { showMessage("error", e); }
+  }
+
+  form.jobId.addEventListener("change", showRange);
+
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    clearMessage();
+    const data = formData(form);
+    try {
+      if (id) {
+        fill(await api("PUT", `/employees/${id}`, data));
+        showMessage("ok", "Saved.");
+        await loadRelated();
+      } else {
+        const e = await api("POST", "/employees", data);
+        location.href = `/employee?id=${e.id}&created=1`;
+      }
+    } catch (e) { showMessage("error", e); }
+  });
+
+  document.getElementById("delete").addEventListener("click", async () => {
+    if (!confirm("Delete this employee and all their leave requests? This cannot be undone (except with a reset).")) return;
+    try {
+      await api("DELETE", `/employees/${id}`);
+      location.href = "/employees";
+    } catch (e) { showMessage("error", e); }
+  });
+
+  const dialog = document.getElementById("terminate-dialog");
+  document.getElementById("terminate").addEventListener("click", async () => {
+    try { document.getElementById("terminationDate").value = (await api("GET", "/health")).today; } catch { /* leave empty */ }
+    dialog.showModal();
+  });
+  dialog.addEventListener("close", async () => {
+    if (dialog.returnValue !== "ok") return;
+    clearMessage();
+    try {
+      fill(await api("POST", `/employees/${id}/terminate`, { terminationDate: document.getElementById("terminationDate").value || undefined }));
+      showMessage("ok", "Employee terminated.");
+      await loadRelated();
+    } catch (e) { showMessage("error", e); }
+  });
+
+  if (qs("created")) showMessage("ok", "Employee created.");
+  load();
+</script>
+</body>
+</html>
