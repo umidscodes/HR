@@ -5,7 +5,7 @@
 import express, { type NextFunction, type Request, type Response, Router } from "express";
 import path from "node:path";
 import { ApiError } from "./errors";
-import { accessLog, errorHandler, requestId } from "./http";
+import { accessLog, errorHandler, plainJson, requestId } from "./http";
 import { openApiDocument } from "./openapi";
 import * as departments from "./api/departments";
 import * as employees from "./api/employees";
@@ -37,7 +37,7 @@ export function createApp() {
 
   // ---- REST API ------------------------------------------------------------------------------
   const api = Router();
-  api.use(requestId, accessLog);
+  api.use(requestId, accessLog, plainJson);
   api.use((req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
   // Some clients add "; charset=ISO-8859-1" to JSON. JSON is UTF-8 by definition, so read it as UTF-8.
   api.use((req, _res, next) => {

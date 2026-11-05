@@ -20,6 +20,16 @@ describe("conventions", () => {
     expect(r.body).toMatchObject({ status: "UP", database: "UP", today: today() });
   });
 
+  it("JSON responses say exactly application/json, errors exactly application/problem+json (no charset)", async () => {
+    expect((await get("/employees/5")).headers.get("content-type")).toBe("application/json");
+    expect((await get("/employees/5")).body.firstName).toBe("Chloé");
+    expect((await get("/jobs")).headers.get("content-type")).toBe("application/json");
+    expect((await post("/departments", { name: "Legal", code: "LEG", location: "Toronto" })).headers.get("content-type")).toBe("application/json");
+    expect((await get("/employees/999")).headers.get("content-type")).toBe("application/problem+json");
+    expect((await call("POST", "/departments", "{oops")).headers.get("content-type")).toBe("application/problem+json");
+    expect((await del("/jobs/1")).headers.get("content-type")).toBe("application/problem+json");
+  });
+
   it("every response has an X-Request-Id, and a sensible one sent by the client is echoed", async () => {
     expect((await get("/jobs")).headers.get("x-request-id")).toMatch(/^[0-9a-f-]{36}$/);
     const r = await call("GET", "/jobs/1", undefined, { "X-Request-Id": "my-test-42" });

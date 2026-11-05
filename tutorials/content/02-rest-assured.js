@@ -303,7 +303,7 @@ the server broke. Ice HR uses exactly these (README section 4):</p>
 <h3>Checking status and headers in REST Assured</h3>
 <ul>
 <li><code>.statusCode(201)</code> checks the number. <code>.statusLine(containsString("Created"))</code> checks the whole line, but the number is enough.</li>
-<li><code>.contentType(ContentType.JSON)</code> checks the <code>Content-Type</code> header. It accepts <code>application/json; charset=utf-8</code> (the charset part is ignored).
+<li><code>.contentType(ContentType.JSON)</code> checks the <code>Content-Type</code> header. Ice HR sends exactly <code>application/json</code>, but the check would also accept <code>application/json; charset=utf-8</code>, as many other APIs send (the charset part is ignored).
 It also accepts <code>application/problem+json</code>, because that is JSON too. To be sure you got an <em>error body</em>, use
 <code>.contentType("application/problem+json")</code> or check the <code>code</code> field.</li>
 <li><code>.header("Allow", equalTo("GET, HEAD"))</code> checks any header. Header <em>names</em> are not case-sensitive (<code>allow</code> works too); the <em>values</em> are.</li>
@@ -447,7 +447,7 @@ HTTP/1.1 405 Method Not Allowed
 X-Request-Id: 22099077-db02-41a4-8fa6-263225e75d45
 Cache-Control: no-store
 Allow: GET, HEAD
-Content-Type: application/problem+json; charset=utf-8
+Content-Type: application/problem+json
 
 {"type":"https://icehr.test/problems/method-not-allowed","title":"Method Not Allowed","status":405,
  "detail":"DELETE is not supported here. Allowed: GET, HEAD.","instance":"/api/v1/jobs/4","code":"METHOD_NOT_ALLOWED"}`,
@@ -461,7 +461,7 @@ Response response = given().spec(Specs.api())
         .when().get("/departments/9");
 
 String requestId = response.header("X-Request-Id");      // "my-run-007"
-String contentType = response.contentType();             // "application/json; charset=utf-8"
+String contentType = response.contentType();             // "application/json"
 int status = response.statusCode();                      // 200
 System.out.println(response.headers());                  // every header, one per line`,
           note: `A fragment to paste inside a test method; it needs <code>import io.restassured.response.Response;</code>.`,
@@ -1160,7 +1160,7 @@ Accept: application/json, application/javascript, text/javascript, text/json
 
 HTTP/1.1 201 Created
 Location: /api/v1/employees/1001
-Content-Type: application/json; charset=utf-8
+Content-Type: application/json
 
 {"id":1001,"firstName":"Test","lastName":"Engineer","gender":"FEMALE","email":"test.3f9a1c2b@icehr.test","phone":"416-555-0199",
  "dateOfBirth":"1995-06-15","hireDate":"2024-03-04","jobId":4,"departmentId":2,"managerId":9,"salary":95000,

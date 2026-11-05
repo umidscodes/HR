@@ -29,6 +29,26 @@ export function accessLog(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+// ---- JSON responses ----------------------------------------------------------------------------
+
+/**
+ * Sends JSON with the header exactly "Content-Type: application/json" (no "; charset=utf-8").
+ * JSON is always UTF-8 (RFC 8259), so the charset adds nothing. Express's own res.json() and
+ * res.send() would append it, so API responses go through this instead.
+ */
+export function sendJson(res: Response, payload: unknown, contentType = "application/json") {
+  const body = Buffer.from(JSON.stringify(payload), "utf8");
+  res.setHeader("Content-Type", contentType);
+  res.setHeader("Content-Length", body.length);
+  res.end(body);
+}
+
+/** Makes res.json() inside the API use sendJson(), so every endpoint gets the plain header. */
+export function plainJson(_req: Request, res: Response, next: NextFunction) {
+  res.json = ((payload: unknown) => { sendJson(res, payload); return res; }) as Response["json"];
+  next();
+}
+
 // ---- parsing -------------------------------------------------------------------------------
 
 export function zodToFieldErrors(err: ZodError, where: string): FieldError[] {
@@ -131,10 +151,11 @@ export function created(res: Response, location: string, payload: unknown) {
 
 function sendProblem(res: Response, req: Request, e: ApiError) {
   for (const [k, v] of Object.entries(e.headers)) res.setHeader(k, v);
-  res.status(e.status).type("application/problem+json").send(JSON.stringify({
+  res.status(e.status);
+  sendJson(res, {
     type: e.type, title: e.title, status: e.status, detail: e.detail, instance: req.originalUrl.split("?")[0], code: e.code,
     ...(e.errors ? { errors: e.errors } : {}),
-  }));
+  }, "application/problem+json");
 }
 
 /** Express error handler: the last middleware in app.ts. */

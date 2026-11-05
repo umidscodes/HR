@@ -118,6 +118,7 @@ If the database changed, you see `[db] Applying migration ...` lines. These upda
 
 | Version | What changed | What you need to do |
 | --- | --- | --- |
+| Content type | API responses now send `Content-Type: application/json` exactly, instead of `application/json; charset=utf-8`. Errors send `application/problem+json`, instead of `application/problem+json; charset=utf-8`. Nothing else changed. | Only tests that compare the whole header as text need a change: `.header("Content-Type", "application/json")` now passes, and the old string with `; charset=utf-8` fails. `.contentType(ContentType.JSON)` and checks with `startsWith` or `containsString` keep working. |
 | Gender | Employees have a required `gender` field: `MALE` or `FEMALE` (rule E1a). New filter `GET /employees?gender=`. New database column `employees.gender` (NOT NULL, CHECK `employees_gender_valid`), also in `v_employee_directory`. The seed has 31 women and 29 men. | Add `"gender"` to every body you send to `POST /employees` or `PUT /employees/{id}`. If you build `new NewEmployee(...)` yourself, gender is the third argument (`"Jane", "Doe", "FEMALE", email, ...`). Add `gender` to any SQL `INSERT INTO employees`. Your existing data gets genders automatically; employees you created yourself are set to `MALE`. |
 | First release | Ice HR, the starter project, Postman collection and tutorials. | Follow section 1. |
 
@@ -227,6 +228,7 @@ Other handy ones: **6** (approved, already started, so it cannot be cancelled), 
   `page` starts at 0; `size` is 1 to 100 (default 20); `sort` is `field` or `field,asc|desc` (default `id,asc`). A page past the end returns `content: []` with status 200.
 - **Created:** a `POST` that creates something returns **201** with a **`Location`** header (e.g. `/api/v1/employees/1001`) and the new record in the body.
 - **Deleted:** `DELETE` returns **204** with no body.
+- **Response type:** every JSON response has the header `Content-Type: application/json` exactly, with no `; charset=...` (JSON is always UTF-8). Errors have `Content-Type: application/problem+json`.
 - **Unknown fields** in a request body are ignored (sending `"id"` or `"status"` changes nothing).
 - **Unknown query parameters** are ignored too: a typo such as `?department=2` (instead of `departmentId`) returns every employee. Check that a filter really filtered.
 - **Invalid query parameters** give 400 with an `errors` list. The filters (`status`, `departmentId`, dates...) are checked first, then `page`, `size` and `sort`, so `?status=FIRED&size=101` reports only `status`.
@@ -339,7 +341,7 @@ Content-Type: application/json
 ```http
 HTTP/1.1 201 Created
 Location: /api/v1/employees/1001
-Content-Type: application/json; charset=utf-8
+Content-Type: application/json
 
 {"id":1001,"firstName":"Jane","lastName":"Doe","gender":"FEMALE","email":"jane.doe@icehr.test","phone":"416-555-0199",
  "dateOfBirth":"1995-06-15","hireDate":"2026-11-02","jobId":4,"departmentId":2,"managerId":9,"salary":95000,
