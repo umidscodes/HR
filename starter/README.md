@@ -4,7 +4,7 @@ API tests (REST Assured) and database tests (JDBC) for [Ice HR](../README.md), i
 It is where you write your own tests while you follow the tutorials (http://localhost:8080/tutorials/).
 
 - Java 17 or newer, JUnit 5, REST Assured 5, Jackson, AssertJ, the PostgreSQL JDBC driver
-- 23 example tests that pass against a freshly started Ice HR
+- 26 example tests that pass against a freshly started Ice HR
 - The normal run leaves your data as it found it: tests delete what they create, and never reset unless you ask
 
 ## 1. Prerequisites

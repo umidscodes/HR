@@ -55,7 +55,7 @@ and then to keep a copy.</p>`,
           code: `
 jobs           id, title, min_salary, max_salary
 departments    id, name, code, location, manager_id -> employees.id
-employees      id, first_name, last_name, email, ..., job_id -> jobs.id,
+employees      id, first_name, last_name, gender, email, ..., job_id -> jobs.id,
                department_id -> departments.id, manager_id -> employees.id (their manager)
 leave_requests id, employee_id -> employees.id, type, start_date, end_date, days,
                status, approver_id -> employees.id`,
@@ -251,7 +251,7 @@ http://localhost:8080/api/v1/employees/13
 
 Code 200
 {
-  "id": 13, "firstName": "Ethan", "lastName": "Nguyen",
+  "id": 13, "firstName": "Ethan", "lastName": "Nguyen", "gender": "MALE",
   "email": "ethan.nguyen@icehr.test", "phone": "416-555-0113",
   "dateOfBirth": "1996-02-14", "hireDate": "2023-04-03",
   "jobId": 4, "departmentId": 2, "managerId": 9, "salary": 80000,
@@ -423,7 +423,7 @@ curl -i -X POST http://localhost:8080/api/v1/departments \\
       summary: "Import the Ice HR collection, run it, and read the small tests inside each request.",
       body: `
 <p><strong>Postman</strong> is a desktop app for sending HTTP requests and saving them in <em>collections</em>. Testers use it to explore an API before
-automating it, and teams share collections as living documentation. Ice HR ships a collection with <strong>55 requests</strong> covering every endpoint,
+automating it, and teams share collections as living documentation. Ice HR ships a collection with <strong>57 requests</strong> covering every endpoint,
 including the error cases.</p>
 
 <h3>Import it</h3>
@@ -499,7 +499,7 @@ pm.test("fast enough", () => pm.expect(pm.response.responseTime).to.be.below(500
     {
       id: "java-toolkit",
       title: "Your Java toolkit: JDK, Maven, IntelliJ and the starter project",
-      summary: "Install the tools, open the starter project, run its 23 tests and read the results.",
+      summary: "Install the tools, open the starter project, run its 26 tests and read the results.",
       body: `
 <p>Your automated tests live in <code>starter/</code>, a ready-made <strong>Maven</strong> project inside the Ice HR folder. Maven is Java's build tool:
 it downloads the libraries listed in <code>pom.xml</code> (REST Assured, JUnit 5, AssertJ, the PostgreSQL driver...), compiles your code and runs the tests.</p>
@@ -518,7 +518,7 @@ it downloads the libraries listed in <code>pom.xml</code> (REST Assured, JUnit 5
 Wait while IntelliJ downloads the libraries (bottom status bar).</li>
 <li>Open <code>src/test/java/com/icehr/tests/HealthApiTest.java</code> and click the green arrow next to the class name. Two tests should pass.</li>
 <li>In a terminal in the <code>starter</code> folder, run <code>mvn test</code>. The first run downloads libraries and takes a few minutes; then you should see
-<code>Tests run: 23, Failures: 0, Errors: 0, Skipped: 0</code> and <code>BUILD SUCCESS</code>.</li>
+<code>Tests run: 26, Failures: 0, Errors: 0, Skipped: 0</code> and <code>BUILD SUCCESS</code>.</li>
 </ol>
 
 <h3>What is in the starter</h3>

@@ -156,7 +156,7 @@ describe("employees: read", () => {
   it("returns an employee with the documented shape", async () => {
     const r = await get("/employees/13");
     expect(r.body).toEqual({
-      id: 13, firstName: "Ethan", lastName: "Nguyen", email: "ethan.nguyen@icehr.test", phone: "416-555-0113",
+      id: 13, firstName: "Ethan", lastName: "Nguyen", gender: "MALE", email: "ethan.nguyen@icehr.test", phone: "416-555-0113",
       dateOfBirth: "1996-02-14", hireDate: "2023-04-03", jobId: 4, departmentId: 2, managerId: 9, salary: 80000,
       status: "ACTIVE", terminationDate: null, createdAt: "2023-04-03T09:00:00-04:00", updatedAt: "2023-04-03T09:00:00-04:00",
     });
@@ -173,6 +173,9 @@ describe("employees: read", () => {
     expect((await get("/employees?page=9")).body.content).toEqual([]);
     expect((await get("/employees?departmentId=2")).body.totalElements).toBe(14);
     expect((await get("/employees?status=TERMINATED")).body.content.map((e: { id: number }) => e.id)).toEqual([58]);
+    expect((await get("/employees?gender=FEMALE")).body.totalElements).toBe(31);
+    expect((await get("/employees?gender=MALE&departmentId=2")).body.totalElements).toBe(8);
+    expect((await get("/employees?gender=X")).body.errors).toEqual([{ field: "gender", message: "must be MALE or FEMALE" }]);
     expect((await get("/employees?search=NGUYEN")).body.content.map((e: { id: number }) => e.id)).toEqual([13]);
     expect((await get("/employees?search=%25")).body.totalElements).toBe(0); // % is matched literally
     expect((await get("/employees?managerId=9")).body.totalElements).toBe(5);
@@ -209,6 +212,7 @@ describe("employees: create and update", () => {
     expect(r.body.errors).toEqual([
       { field: "firstName", message: "must not be blank" },
       { field: "lastName", message: "is required" },
+      { field: "gender", message: "is required" },
       { field: "email", message: "must be a valid email address" },
       { field: "phone", message: "must be in the format 416-555-0100" },
       { field: "dateOfBirth", message: "must be a real date in the format YYYY-MM-DD" },
@@ -217,6 +221,18 @@ describe("employees: create and update", () => {
       { field: "departmentId", message: "is required" },
       { field: "salary", message: "must be a whole number" },
     ]);
+  });
+
+  it("gender is required and must be MALE or FEMALE", async () => {
+    expect((await post("/employees", newEmployee({ gender: "MALE" }))).body.gender).toBe("MALE");
+    for (const bad of ["male", "OTHER", "", 1]) {
+      const r = await post("/employees", newEmployee({ gender: bad }));
+      expect(r.status).toBe(400);
+      expect(r.body.errors).toEqual([{ field: "gender", message: "must be one of: MALE, FEMALE" }]);
+    }
+    expect((await post("/employees", newEmployee({ gender: undefined }))).body.errors).toEqual([{ field: "gender", message: "is required" }]);
+    expect((await patch("/employees/13", { gender: "FEMALE" })).body.gender).toBe("FEMALE");
+    expect((await patch("/employees/13", { gender: null })).body.errors).toEqual([{ field: "gender", message: "is required" }]);
   });
 
   it("salary must be inside the job's range, both ends included", async () => {
@@ -492,6 +508,8 @@ describe("reports and database", () => {
       expect(await fails("UPDATE employees SET email = 'Ethan@icehr.test' WHERE id = 13")).toBe("employees_email_lowercase");
       expect(await fails("UPDATE employees SET manager_id = 13 WHERE id = 13")).toBe("employees_not_own_manager");
       expect(await fails("UPDATE employees SET status = 'TERMINATED' WHERE id = 13")).toBe("employees_termination_date_matches_status");
+      expect(await fails("UPDATE employees SET gender = 'OTHER' WHERE id = 13")).toBe("employees_gender_valid");
+      expect(await fails("UPDATE employees SET gender = NULL WHERE id = 13")).toBe("23502");
       expect(await fails("DELETE FROM departments WHERE id = 2")).toBe("employees_department_id_fkey");
       expect(await fails("INSERT INTO leave_requests (employee_id, type, start_date, end_date, days) VALUES (13, 'VACATION', '2026-12-10', '2026-12-09', 1)"))
         .toBe("leave_dates_in_order");

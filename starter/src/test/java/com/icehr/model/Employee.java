@@ -15,6 +15,7 @@ public record Employee(
         Integer id,
         String firstName,
         String lastName,
+        String gender,
         String email,
         String phone,
         LocalDate dateOfBirth,

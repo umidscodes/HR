@@ -30,13 +30,13 @@ export async function resetData(c: pg.PoolClient | pg.Client): Promise<ResetSumm
         [id, name, code, location, SYSTEM_START]);
     }
     // Managers always have smaller ids than their reports, so inserting in id order works.
-    for (const [id, first, last, jobId, deptId, managerId, salary, dob, hire, phone] of EMPLOYEES) {
+    for (const [id, first, last, gender, jobId, deptId, managerId, salary, dob, hire, phone] of EMPLOYEES) {
       const terminated = TERMINATED[id] ?? null;
       await c.query(
-        `INSERT INTO employees (id, first_name, last_name, email, phone, date_of_birth, hire_date, job_id, department_id,
+        `INSERT INTO employees (id, first_name, last_name, gender, email, phone, date_of_birth, hire_date, job_id, department_id,
                                 manager_id, salary, status, termination_date, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
-        [id, first, last, emailFor(first, last), phone, dob, hire, jobId, deptId, managerId, salary,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+        [id, first, last, gender, emailFor(first, last), phone, dob, hire, jobId, deptId, managerId, salary,
           terminated ? "TERMINATED" : "ACTIVE", terminated, at(hire), terminated ? at(terminated, "17:00") : at(hire)]);
     }
     for (const [id, , , , managerId] of DEPARTMENTS) {
