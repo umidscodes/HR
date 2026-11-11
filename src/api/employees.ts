@@ -22,6 +22,9 @@ const fields = {
   jobId: id().openapi({ example: 4 }),
   departmentId: id().openapi({ example: 2 }),
   managerId: id().nullish().openapi({ example: 9, description: "Optional. An ACTIVE employee." }),
+  countryCode: z.string({ error: (i) => (i.input === undefined || i.input === null ? "is required" : "must be a string") })
+    .regex(/^[A-Z]{2}$/, "must be a two-letter country code in capitals, like CA")
+    .openapi({ example: "CA", description: "The country the employee works in. See GET /countries." }),
   salary: wholeNumber(1).openapi({ example: 95000, description: "Annual salary in whole dollars, within the job's range." }),
 };
 
@@ -37,6 +40,7 @@ const EmployeePatch = registry.register("EmployeePatch", z.object({
   jobId: fields.jobId.optional(),
   departmentId: fields.departmentId.optional(),
   managerId: fields.managerId,
+  countryCode: fields.countryCode.optional(),
   salary: fields.salary.optional(),
 }));
 const TerminateInput = registry.register("TerminateInput", z.object({
@@ -45,25 +49,27 @@ const TerminateInput = registry.register("TerminateInput", z.object({
 
 interface Emp {
   firstName: string; lastName: string; gender: "MALE" | "FEMALE"; email: string; phone: string | null; dateOfBirth: string; hireDate: string;
-  jobId: number; departmentId: number; managerId: number | null; salary: number;
+  jobId: number; departmentId: number; managerId: number | null; countryCode: string; salary: number;
 }
 
 const fromRow = (r: EmployeeRow): Emp => ({
   firstName: r.first_name, lastName: r.last_name, gender: r.gender, email: r.email, phone: r.phone, dateOfBirth: r.date_of_birth,
-  hireDate: r.hire_date, jobId: r.job_id, departmentId: r.department_id, managerId: r.manager_id, salary: r.salary,
+  hireDate: r.hire_date, jobId: r.job_id, departmentId: r.department_id, managerId: r.manager_id, countryCode: r.country_code, salary: r.salary,
 });
 
 // ---- rules -----------------------------------------------------------------------------------
 
 /**
  * The business rules for an employee's final state, checked in this order (the first broken rule wins):
- * job, department and manager exist; manager rules; age at hire; hire date; salary range; unique email.
+ * job, department and country exist; manager rules; age at hire; hire date; salary range; unique email.
  */
 async function check(e: Emp, db: Db, selfId?: number) {
   const [job] = await sql<JobRow>("SELECT id, title, min_salary, max_salary FROM jobs WHERE id = $1", [e.jobId], db);
   if (!job) throw rule("JOB_NOT_FOUND", `Job ${e.jobId} does not exist.`);
   const [dept] = await sql<{ id: number }>("SELECT id FROM departments WHERE id = $1", [e.departmentId], db);
   if (!dept) throw rule("DEPARTMENT_NOT_FOUND", `Department ${e.departmentId} does not exist.`);
+  const [country] = await sql<{ code: string }>("SELECT code FROM countries WHERE code = $1", [e.countryCode], db);
+  if (!country) throw rule("COUNTRY_NOT_FOUND", `There is no country with the code ${e.countryCode}. See GET /api/v1/countries.`);
   if (e.managerId != null) {
     if (selfId !== undefined && e.managerId === selfId) throw rule("SELF_MANAGER", "An employee cannot be their own manager.");
     const m = await findEmployee(e.managerId, db);
@@ -109,6 +115,8 @@ const ListQuery = z.object({
   managerId: z.string().regex(/^\d+$/, "must be a whole number").optional(),
   status: z.enum(["ACTIVE", "TERMINATED"], { error: () => "must be ACTIVE or TERMINATED" }).optional(),
   gender: z.enum(GENDERS, { error: () => "must be MALE or FEMALE" }).optional(),
+  countryCode: z.string().regex(/^[A-Z]{2}$/, "must be a two-letter country code in capitals, like CA").optional(),
+  regionId: z.string().regex(/^\d+$/, "must be a whole number").optional(),
   search: z.string().max(100, "must be at most 100 characters").optional(),
   hiredFrom: z.string().refine(isRealDate, "must be a real date in the format YYYY-MM-DD").optional(),
   hiredTo: z.string().refine(isRealDate, "must be a real date in the format YYYY-MM-DD").optional(),
@@ -137,6 +145,8 @@ router.get("/employees", async (req, res) => {
   if (q.managerId) add("manager_id = ?", Number(q.managerId));
   if (q.status) add("status = ?", q.status);
   if (q.gender) add("gender = ?", q.gender);
+  if (q.countryCode) add("country_code = ?", q.countryCode);
+  if (q.regionId) add("country_code IN (SELECT code FROM countries WHERE region_id = ?)", Number(q.regionId));
   if (q.search?.trim()) {
     add("(first_name || ' ' || last_name || ' ' || email) ILIKE ?", `%${q.search.trim().replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
   }
@@ -164,9 +174,9 @@ router.post("/employees", async (req, res) => {
     await c.query("LOCK TABLE employees IN SHARE ROW EXCLUSIVE MODE");
     await check(e, c);
     const [ins] = await sql<{ id: number }>(
-      `INSERT INTO employees (first_name, last_name, email, phone, date_of_birth, hire_date, job_id, department_id, manager_id, salary, gender)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-      [e.firstName, e.lastName, e.email, e.phone, e.dateOfBirth, e.hireDate, e.jobId, e.departmentId, e.managerId, e.salary, e.gender], c);
+      `INSERT INTO employees (first_name, last_name, email, phone, date_of_birth, hire_date, job_id, department_id, manager_id, salary, gender, country_code)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+      [e.firstName, e.lastName, e.email, e.phone, e.dateOfBirth, e.hireDate, e.jobId, e.departmentId, e.managerId, e.salary, e.gender, e.countryCode], c);
     return load(ins.id, c);
   });
   created(res, `/api/v1/employees/${row.id}`, toEmployee(row));
@@ -182,8 +192,8 @@ async function update(id: number, patch: Partial<Emp>) {
     await check(e, c, id);
     await c.query(
       `UPDATE employees SET first_name = $2, last_name = $3, email = $4, phone = $5, date_of_birth = $6, hire_date = $7,
-              job_id = $8, department_id = $9, manager_id = $10, salary = $11, gender = $12, updated_at = now() WHERE id = $1`,
-      [id, e.firstName, e.lastName, e.email, e.phone, e.dateOfBirth, e.hireDate, e.jobId, e.departmentId, e.managerId, e.salary, e.gender]);
+              job_id = $8, department_id = $9, manager_id = $10, salary = $11, gender = $12, country_code = $13, updated_at = now() WHERE id = $1`,
+      [id, e.firstName, e.lastName, e.email, e.phone, e.dateOfBirth, e.hireDate, e.jobId, e.departmentId, e.managerId, e.salary, e.gender, e.countryCode]);
     return load(id, c);
   });
 }
@@ -308,16 +318,16 @@ const e409 = problem("EMAIL_TAKEN: another employee already has this email (comp
   problemExample(409, "EMAIL_TAKEN", "The email ethan.nguyen@icehr.test is already used by employee 13.", P));
 const e415 = problem("The body was not sent as application/json.", problemExample(415, "UNSUPPORTED_MEDIA_TYPE", "Send the request body as JSON with the header Content-Type: application/json (received: text/plain).", P));
 const e422 = problem(
-  "A business rule is broken. Codes, in the order they are checked: JOB_NOT_FOUND, DEPARTMENT_NOT_FOUND, SELF_MANAGER, MANAGER_NOT_FOUND, " +
+  "A business rule is broken. Codes, in the order they are checked: JOB_NOT_FOUND, DEPARTMENT_NOT_FOUND, COUNTRY_NOT_FOUND, SELF_MANAGER, MANAGER_NOT_FOUND, " +
   "MANAGER_NOT_ACTIVE, MANAGER_CYCLE, EMPLOYEE_UNDERAGE, HIRE_DATE_IN_FUTURE, SALARY_OUT_OF_RANGE.",
   problemExample(422, "SALARY_OUT_OF_RANGE", "Salary 30000 is outside the range for Software Engineer (80000 to 115000).", P));
 const rulesText =
-  "Rules: gender is MALE or FEMALE; email unique (409 EMAIL_TAKEN); jobId, departmentId and managerId must exist; the manager must be ACTIVE; " +
+  "Rules: gender is MALE or FEMALE; countryCode is a two-letter code that exists in GET /countries; email unique (409 EMAIL_TAKEN); jobId, departmentId and managerId must exist; the manager must be ACTIVE; " +
   "at least 18 years old on the hire date; hire date not in the future; salary within the job's range.";
 
 registry.registerPath({
   method: "get", path: P, tags: ["Employees"], summary: "Search employees (paged)",
-  description: "All filters are optional and combine with AND. `search` matches first name, last name or email (contains, ignoring case). " +
+  description: "All filters are optional and combine with AND. `regionId` keeps employees whose country is in that region. `search` matches first name, last name or email (contains, ignoring case). " +
     "Sort fields: id, firstName, lastName, email, hireDate, dateOfBirth, salary. Default: id,asc.",
   request: {
     query: z.object({
@@ -326,6 +336,8 @@ registry.registerPath({
       managerId: z.string().optional(),
       status: z.enum(["ACTIVE", "TERMINATED"]).optional(),
       gender: z.enum(["MALE", "FEMALE"]).optional(),
+      countryCode: z.string().optional().openapi({ example: "US" }),
+      regionId: z.string().optional().openapi({ example: "1" }),
       search: z.string().optional().openapi({ example: "nguyen" }),
       hiredFrom: z.string().optional().openapi({ example: "2020-01-01" }),
       hiredTo: z.string().optional().openapi({ example: "2024-12-31" }),
@@ -349,7 +361,7 @@ registry.registerPath({
       content: {
         "application/json": {
           schema: EmployeeInput,
-          example: { firstName: "Jane", lastName: "Doe", gender: "FEMALE", email: "jane.doe@icehr.test", phone: "416-555-0199", dateOfBirth: "1995-06-15", hireDate: "2026-11-02", jobId: 4, departmentId: 2, managerId: 9, salary: 95000 },
+          example: { firstName: "Jane", lastName: "Doe", gender: "FEMALE", email: "jane.doe@icehr.test", phone: "416-555-0199", dateOfBirth: "1995-06-15", hireDate: "2026-11-02", jobId: 4, departmentId: 2, managerId: 9, countryCode: "CA", salary: 95000 },
         },
       },
     },
@@ -371,7 +383,7 @@ registry.registerPath({
       content: {
         "application/json": {
           schema: EmployeeInput,
-          example: { firstName: "Ethan", lastName: "Nguyen", gender: "MALE", email: "ethan.nguyen@icehr.test", phone: "416-555-0113", dateOfBirth: "1996-02-14", hireDate: "2023-04-03", jobId: 4, departmentId: 2, managerId: 9, salary: 90000 },
+          example: { firstName: "Ethan", lastName: "Nguyen", gender: "MALE", email: "ethan.nguyen@icehr.test", phone: "416-555-0113", dateOfBirth: "1996-02-14", hireDate: "2023-04-03", jobId: 4, departmentId: 2, managerId: 9, countryCode: "CA", salary: 90000 },
         },
       },
     },

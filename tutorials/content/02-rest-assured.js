@@ -1156,15 +1156,15 @@ Content-Type: application/json
 Accept: application/json, application/javascript, text/javascript, text/json
 
 {"firstName":"Test","lastName":"Engineer","gender":"FEMALE","email":"test.3f9a1c2b@icehr.test","phone":"416-555-0199",
- "dateOfBirth":"1995-06-15","hireDate":"2024-03-04","jobId":4,"departmentId":2,"managerId":9,"salary":95000}
+ "dateOfBirth":"1995-06-15","hireDate":"2024-03-04","jobId":4,"departmentId":2,"managerId":9,"salary":95000,"countryCode":"CA"}
 
 HTTP/1.1 201 Created
 Location: /api/v1/employees/1001
 Content-Type: application/json
 
 {"id":1001,"firstName":"Test","lastName":"Engineer","gender":"FEMALE","email":"test.3f9a1c2b@icehr.test","phone":"416-555-0199",
- "dateOfBirth":"1995-06-15","hireDate":"2024-03-04","jobId":4,"departmentId":2,"managerId":9,"salary":95000,
- "status":"ACTIVE","terminationDate":null,"createdAt":"2026-11-05T10:15:00-05:00","updatedAt":"2026-11-05T10:15:00-05:00"}`,
+ "dateOfBirth":"1995-06-15","hireDate":"2024-03-04","jobId":4,"departmentId":2,"managerId":9,"countryCode":"CA","regionId":1,
+ "salary":95000,"status":"ACTIVE","terminationDate":null,"createdAt":"2026-11-05T10:15:00-05:00","updatedAt":"2026-11-05T10:15:00-05:00"}`,
           note: `Add <code>.log().body()</code> after <code>given()</code> to print the JSON your test sends.`,
         },
       ],
@@ -1420,7 +1420,7 @@ class EmployeeUpdateTest {
     @Test
     void put_replaces_everything_so_a_missing_phone_becomes_null() {
         NewEmployee replacement = new NewEmployee("Test", "Replaced", "FEMALE", TestData.uniqueEmail(), null,
-                LocalDate.of(1995, 6, 15), LocalDate.of(2024, 3, 4), 4, 2, 9, 95000);
+                LocalDate.of(1995, 6, 15), LocalDate.of(2024, 3, 4), 4, 2, 9, 95000, "CA");
 
         given().spec(Specs.api())
                 .body(replacement)        // phone is null, so NewEmployee leaves it out of the JSON
@@ -1511,7 +1511,7 @@ tests than positive ones.</p>
 <code>field</code> and a <code>message</code>. That lets one request test many rules, and it is a rule you can test too.</p>
 <p><strong>Worked example.</strong> Send this to <code>POST /api/v1/employees</code>:</p>
 <pre><code>{"firstName":"Jane","lastName":"","gender":"FEMALE","email":"jane.doe-at-icehr.test","phone":"4165550199",
- "dateOfBirth":"1995-02-30","hireDate":"2026-11-02","jobId":4,"departmentId":2,"salary":95000.5}</code></pre>
+ "dateOfBirth":"1995-02-30","hireDate":"2026-11-02","jobId":4,"departmentId":2,"countryCode":"CA","salary":95000.5}</code></pre>
 <p>Ice HR answers 400 with five errors: <code>lastName</code> "must not be blank", <code>email</code> "must be a valid email address", <code>phone</code> "must be in the format
 416-555-0100", <code>dateOfBirth</code> "must be a real date in the format YYYY-MM-DD" (there is no 30 February) and <code>salary</code> "must be a whole number".
 <code>managerId</code> is missing, but it is optional, so it is not an error. Check the list with <code>.body("errors.field", hasItems(…))</code>, or extract a
@@ -1599,6 +1599,7 @@ class ErrorResponsesTest {
                   "hireDate": "2026-11-02",
                   "jobId": 4,
                   "departmentId": 2,
+                  "countryCode": "CA",
                   "salary": 95000.5
                 }
                 """;
@@ -1710,6 +1711,7 @@ public record Problem(
     { "field": "hireDate", "message": "is required" },
     { "field": "jobId", "message": "is required" },
     { "field": "departmentId", "message": "is required" },
+    { "field": "countryCode", "message": "is required" },
     { "field": "salary", "message": "is required" }
   ]
 }`,
@@ -2484,9 +2486,10 @@ class JavaObjectsTest {
         try {
             assertThat(saved)
                     .usingRecursiveComparison()
-                    .ignoringFields("id", "status", "terminationDate", "createdAt", "updatedAt")
+                    .ignoringFields("id", "regionId", "status", "terminationDate", "createdAt", "updatedAt")
                     .isEqualTo(sent);                           // same names, same values
             assertThat(saved.status()).isEqualTo("ACTIVE");
+            assertThat(saved.regionId()).isEqualTo(1);           // the server works it out from countryCode "CA"
             assertThat(saved.id()).isGreaterThan(1000);
         } finally {
             given().spec(Specs.api()).delete("/employees/{id}", saved.id());
@@ -3204,7 +3207,7 @@ class RepeatableTest {
         cleanup.push("/departments/" + departmentId);
 
         NewEmployee body = new NewEmployee("Rae", "Peat", "FEMALE", TestData.uniqueEmail(), null,
-                LocalDate.of(1990, 1, 1), TestData.today().minusDays(7), 4, departmentId, 9, 90000);
+                LocalDate.of(1990, 1, 1), TestData.today().minusDays(7), 4, departmentId, 9, 90000, "CA");
         int employeeId = given().spec(Specs.api())
                 .body(body)
         .when().post("/employees")
@@ -3600,7 +3603,7 @@ void hire_and_check() {
             "firstName", "Sam", "lastName", "Lee", "gender", "MALE",
             "email", "sam.lee@icehr.test",
             "dateOfBirth", "1994-03-02", "hireDate", "2025-01-06",
-            "jobId", 4, "departmentId", 2, "salary", "90000");
+            "jobId", 4, "departmentId", 2, "countryCode", "CA", "salary", "90000");
 
     int id = given().baseUri("http://localhost:8080").body(body)
             .post("/api/v1/employees")

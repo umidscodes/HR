@@ -135,6 +135,21 @@ class EmployeesApiTest {
     }
 
     @Test
+    void mei_wong_works_in_the_us_which_is_region_1() {
+        given().spec(Specs.api())
+        .when().get("/employees/11")
+        .then().spec(Specs.ok())
+                .body("countryCode", equalTo("US"))
+                .body("regionId", equalTo(1));
+    }
+
+    @Test
+    void a_country_that_does_not_exist_is_rejected() {
+        hire(NewEmployee.valid().withCountry("XX"))
+                .then().spec(Specs.problem(422, "COUNTRY_NOT_FOUND"));
+    }
+
+    @Test
     void an_email_already_in_use_is_a_conflict() {
         hire(NewEmployee.valid().withEmail("ETHAN.NGUYEN@icehr.test"))
                 .then().spec(Specs.problem(409, "EMAIL_TAKEN"));

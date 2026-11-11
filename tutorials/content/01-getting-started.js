@@ -33,6 +33,8 @@ status codes and SQL first. Authentication comes later, with Ice Bank.</p>
 <p>The fictional company has <strong>9 departments</strong>, <strong>15 jobs</strong> (each with a salary range), <strong>60 employees</strong> and
 <strong>35 leave requests</strong> (time off: vacation, sick or personal days). Every employee has a job, a department and, except the CEO, a manager.
 Managers approve or reject their team's leave.</p>
+<p>The company is based in Canada, but people work from many countries: each employee has a <code>countryCode</code> (35 in Canada, 9 in the
+United States, 16 elsewhere), and every country belongs to one of <strong>20 regions</strong> (1 Northern America, 2 Central America, ...).</p>
 <p>The data is <strong>seeded</strong>: after every reset it is exactly the same, with the same ids and values. So "employee 13" is always
 Ethan Nguyen, a Software Engineer earning 80000. That lets you write tests that expect exact values.</p>
 
@@ -50,15 +52,18 @@ and a short <strong>quiz</strong>. Your ticks, notes and quiz scores are saved i
 and then to keep a copy.</p>`,
       examples: [
         {
-          title: "The four tables and how they connect",
+          title: "The tables and how they connect",
           lang: "text",
           code: `
 jobs           id, title, min_salary, max_salary
 departments    id, name, code, location, manager_id -> employees.id
 employees      id, first_name, last_name, gender, email, ..., job_id -> jobs.id,
-               department_id -> departments.id, manager_id -> employees.id (their manager)
+               department_id -> departments.id, manager_id -> employees.id (their manager),
+               country_code -> countries.code (the country they work in)
 leave_requests id, employee_id -> employees.id, type, start_date, end_date, days,
-               status, approver_id -> employees.id`,
+               status, approver_id -> employees.id
+countries      code (CA, US, ...), name, region_id -> regions.id
+regions        id (1 to 20), name`,
         },
         {
           title: "A test idea, written the right way round",
@@ -254,7 +259,8 @@ Code 200
   "id": 13, "firstName": "Ethan", "lastName": "Nguyen", "gender": "MALE",
   "email": "ethan.nguyen@icehr.test", "phone": "416-555-0113",
   "dateOfBirth": "1996-02-14", "hireDate": "2023-04-03",
-  "jobId": 4, "departmentId": 2, "managerId": 9, "salary": 80000,
+  "jobId": 4, "departmentId": 2, "managerId": 9,
+  "countryCode": "CA", "regionId": 1, "salary": 80000,
   "status": "ACTIVE", "terminationDate": null,
   "createdAt": "2023-04-03T09:00:00-04:00", "updatedAt": "2023-04-03T09:00:00-04:00"
 }
@@ -423,7 +429,7 @@ curl -i -X POST http://localhost:8080/api/v1/departments \\
       summary: "Import the Ice HR collection, run it, and read the small tests inside each request.",
       body: `
 <p><strong>Postman</strong> is a desktop app for sending HTTP requests and saving them in <em>collections</em>. Testers use it to explore an API before
-automating it, and teams share collections as living documentation. Ice HR ships a collection with <strong>57 requests</strong> covering every endpoint,
+automating it, and teams share collections as living documentation. Ice HR ships a collection with <strong>64 requests</strong> covering every endpoint,
 including the error cases.</p>
 
 <h3>Import it</h3>
@@ -499,7 +505,7 @@ pm.test("fast enough", () => pm.expect(pm.response.responseTime).to.be.below(500
     {
       id: "java-toolkit",
       title: "Your Java toolkit: JDK, Maven, IntelliJ and the starter project",
-      summary: "Install the tools, open the starter project, run its 26 tests and read the results.",
+      summary: "Install the tools, open the starter project, run its 28 tests and read the results.",
       body: `
 <p>Your automated tests live in <code>starter/</code>, a ready-made <strong>Maven</strong> project inside the Ice HR folder. Maven is Java's build tool:
 it downloads the libraries listed in <code>pom.xml</code> (REST Assured, JUnit 5, AssertJ, the PostgreSQL driver...), compiles your code and runs the tests.</p>
@@ -518,7 +524,7 @@ it downloads the libraries listed in <code>pom.xml</code> (REST Assured, JUnit 5
 Wait while IntelliJ downloads the libraries (bottom status bar).</li>
 <li>Open <code>src/test/java/com/icehr/tests/HealthApiTest.java</code> and click the green arrow next to the class name. Two tests should pass.</li>
 <li>In a terminal in the <code>starter</code> folder, run <code>mvn test</code>. The first run downloads libraries and takes a few minutes; then you should see
-<code>Tests run: 26, Failures: 0, Errors: 0, Skipped: 0</code> and <code>BUILD SUCCESS</code>.</li>
+<code>Tests run: 28, Failures: 0, Errors: 0, Skipped: 0</code> and <code>BUILD SUCCESS</code>.</li>
 </ol>
 
 <h3>What is in the starter</h3>

@@ -11,11 +11,12 @@ import * as departments from "./api/departments";
 import * as employees from "./api/employees";
 import * as jobs from "./api/jobs";
 import * as leave from "./api/leave";
+import * as regions from "./api/regions";
 import * as reports from "./api/reports";
 import * as support from "./api/support";
 
 const ROOT = path.resolve(__dirname, "..");
-const routers: Router[] = [support.router, jobs.router, departments.router, employees.router, leave.router, reports.router];
+const routers: Router[] = [support.router, jobs.router, departments.router, employees.router, leave.router, regions.router, reports.router];
 
 /** Methods that some route accepts for this path, e.g. ["GET", "PUT"] for /employees/7. */
 function methodsFor(urlPath: string): string[] {

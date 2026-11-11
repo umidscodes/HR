@@ -13,6 +13,8 @@ export const EmployeeSchema = registry.register("Employee", z.object({
   jobId: z.number().int().openapi({ example: 4 }),
   departmentId: z.number().int().openapi({ example: 2 }),
   managerId: z.number().int().nullable().openapi({ example: 9 }),
+  countryCode: z.string().openapi({ example: "CA", description: "The country the employee works in (ISO 3166 two-letter code)." }),
+  regionId: z.number().int().openapi({ example: 1, description: "Read-only: the region of countryCode (1 to 20). Sending it in a request changes nothing." }),
   salary: z.number().int().openapi({ example: 80000, description: "Annual salary in whole dollars." }),
   status: z.enum(["ACTIVE", "TERMINATED"]).openapi({ example: "ACTIVE" }),
   terminationDate: z.string().nullable().openapi({ example: null, format: "date" }),
@@ -45,4 +47,25 @@ export const LeaveRequestSchema = registry.register("LeaveRequest", z.object({
   decidedAt: DateTimeStr.nullable(),
   createdAt: DateTimeStr,
   updatedAt: DateTimeStr,
+}));
+
+export const CountrySchema = registry.register("Country", z.object({
+  code: z.string().openapi({ example: "CA", description: "ISO 3166 two-letter code." }),
+  name: z.string().openapi({ example: "Canada" }),
+  regionId: z.number().int().openapi({ example: 1 }),
+}));
+
+export const RegionSchema = registry.register("Region", z.object({
+  id: z.number().int().openapi({ example: 1 }),
+  name: z.string().openapi({ example: "Northern America" }),
+  countryCount: z.number().int().openapi({ example: 2 }),
+}));
+
+export const RegionDetailSchema = registry.register("RegionDetail", z.object({
+  id: z.number().int().openapi({ example: 1 }),
+  name: z.string().openapi({ example: "Northern America" }),
+  countries: z.array(z.object({
+    code: z.string().openapi({ example: "CA" }),
+    name: z.string().openapi({ example: "Canada" }),
+  })),
 }));

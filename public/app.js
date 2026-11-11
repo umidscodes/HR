@@ -88,3 +88,12 @@ async function fillSelect(select, path, label, { blank } = {}) {
     items.map((i) => `<option value="${i.id}">${esc(label(i))}</option>`).join("");
   return items;
 }
+
+/** Fills a <select> with every country, grouped by region (value = the two-letter code). */
+async function fillCountries(select, blank) {
+  const [regions, countries] = await Promise.all([api("GET", "/regions"), api("GET", "/countries")]);
+  select.innerHTML = (blank !== undefined ? `<option value="">${esc(blank)}</option>` : "") + regions.map((r) =>
+    `<optgroup label="${esc(r.id + ". " + r.name)}">` + countries.filter((c) => c.regionId === r.id)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((c) => `<option value="${esc(c.code)}">${esc(c.name)} (${esc(c.code)})</option>`).join("") + "</optgroup>").join("");
+}

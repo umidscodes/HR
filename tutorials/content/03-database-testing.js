@@ -16,7 +16,7 @@ row get the right department? When you terminate someone, were their pending lea
 finish in Java, with JUnit tests in the starter project that call the API and then check the rows with JDBC.</p>
 <p>When you finish, you will be able to:</p>
 <ul>
-<li>connect to the Ice HR database as a read-only and as a read-write user, and find your way around its 4 tables and 2 views;</li>
+<li>connect to the Ice HR database as a read-only and as a read-write user, and find your way around its 6 tables and 3 views;</li>
 <li>write <code>SELECT</code> queries with filters, sorting, grouping, joins, subqueries and CTEs, and predict their results from the seed data;</li>
 <li>change data safely inside a transaction, and explain each database constraint and the error it gives;</li>
 <li>use JDBC and the starter's <code>Db</code> helper to check API actions in the database, set up test data with SQL, and clean up after yourself.</li>
@@ -82,13 +82,16 @@ the same host, port, database, user and password. Click <em>Test Connection</em>
 <tbody>
 <tr><td><code>jobs</code> (table)</td><td>15</td><td>Job titles with a salary range: <code>min_salary</code>, <code>max_salary</code></td></tr>
 <tr><td><code>departments</code> (table)</td><td>9</td><td>Name, code, location and <code>manager_id</code> (an employee)</td></tr>
-<tr><td><code>employees</code> (table)</td><td>60</td><td>People, with <code>job_id</code>, <code>department_id</code>, <code>manager_id</code>, salary, status</td></tr>
+<tr><td><code>employees</code> (table)</td><td>60</td><td>People, with <code>job_id</code>, <code>department_id</code>, <code>manager_id</code>, <code>country_code</code>, gender, salary, status</td></tr>
 <tr><td><code>leave_requests</code> (table)</td><td>35</td><td>Time off: <code>employee_id</code>, type, dates, <code>days</code>, status, <code>approver_id</code></td></tr>
+<tr><td><code>regions</code> (table)</td><td>20</td><td>World regions, ids 1 to 20 (Northern America, Western Europe, Eastern Asia, ...). Read-only reference data.</td></tr>
+<tr><td><code>countries</code> (table)</td><td>82</td><td>Countries by two-letter <code>code</code> (<code>CA</code>, <code>US</code>, ...), each with a <code>region_id</code>. Read-only reference data.</td></tr>
 <tr><td><code>v_department_stats</code> (view)</td><td>9</td><td>Headcount and salary figures per department</td></tr>
-<tr><td><code>v_employee_directory</code> (view)</td><td>60</td><td>Every employee with job title, department name and manager name</td></tr>
+<tr><td><code>v_employee_directory</code> (view)</td><td>60</td><td>Every employee with job title, department, manager, country and region names</td></tr>
+<tr><td><code>v_region_stats</code> (view)</td><td>20</td><td>Countries and active headcount per region, including regions where nobody works</td></tr>
 </tbody></table></div>
-<p>A <strong>view</strong> is a saved <code>SELECT</code>. You query it like a table, and it always shows current data. You also see a fifth table,
-<code>schema_migrations</code>. It only records which setup scripts have run (3 rows). Ignore it.</p>
+<p>A <strong>view</strong> is a saved <code>SELECT</code>. You query it like a table, and it always shows current data. You also see a seventh table,
+<code>schema_migrations</code>. It only records which setup scripts have run (one row per script). Ignore it.</p>
 
 <h3>Reading the ER diagram</h3>
 <p>An <strong>ER diagram</strong> (entity-relationship diagram) draws each table as a box and each link between tables as a line. In DBeaver,
@@ -101,6 +104,8 @@ the schema → <em>Diagrams → Show Diagram</em>.</p>
 <li><code>employees.department_id → departments.id</code>: many employees work in one department.</li>
 <li><code>employees.manager_id → employees.id</code>: a line from the table to itself. An employee's manager is another employee.</li>
 <li><code>departments.manager_id → employees.id</code>: a department is run by one employee. With the line above, departments and employees point at each other.</li>
+<li><code>employees.country_code → countries.code</code>: many employees work in one country. This key is a two-letter text code, not a number.</li>
+<li><code>countries.region_id → regions.id</code>: many countries are in one region. So an employee's region is two hops away: employee → country → region.</li>
 <li><code>leave_requests.employee_id → employees.id</code> and <code>leave_requests.approver_id → employees.id</code>: two lines to the same table, one for who asked and one for who decided.</li>
 </ul>
 
@@ -168,8 +173,10 @@ SELECT column_name, data_type, is_nullable, column_default
 SELECT 'jobs' AS table_name, COUNT(*) AS row_count FROM jobs
 UNION ALL SELECT 'departments', COUNT(*) FROM departments
 UNION ALL SELECT 'employees', COUNT(*) FROM employees
-UNION ALL SELECT 'leave_requests', COUNT(*) FROM leave_requests;`,
-          note: "After a reset: 15, 9, 60 and 35. <code>UNION ALL</code> glues the results of several queries into one list.",
+UNION ALL SELECT 'leave_requests', COUNT(*) FROM leave_requests
+UNION ALL SELECT 'regions', COUNT(*) FROM regions
+UNION ALL SELECT 'countries', COUNT(*) FROM countries;`,
+          note: "After a reset: 15, 9, 60, 35, 20 and 82. <code>UNION ALL</code> glues the results of several queries into one list.",
         },
         {
           title: "What may this user do?",
@@ -636,7 +643,7 @@ NULL. With an inner join you get 59 rows, because Margaret has no manager and dr
 <h3>The view that does it for you</h3>
 <p><code>v_employee_directory</code> is exactly such a join, saved as a view: every employee with <code>full_name</code>, <code>job_title</code>,
 <code>department_name</code>, <code>manager_id</code> and <code>manager_name</code>. Look at its definition in DBeaver (open the view → <em>Source</em>)
-and you will see <code>JOIN jobs</code>, <code>JOIN departments</code> and <code>LEFT JOIN employees m</code>. It returns 60 rows, so it includes
+and you will see <code>JOIN jobs</code>, <code>JOIN departments</code>, <code>JOIN countries</code>, <code>JOIN regions</code> and <code>LEFT JOIN employees m</code>. It returns 60 rows, so it includes
 Tanya Ivanova (58, TERMINATED) and Margaret Chen with an empty manager.</p>
 
 <h3>Rows without a partner (anti-join)</h3>
@@ -658,6 +665,29 @@ Tanya Ivanova (58, TERMINATED) and Margaret Chen with an empty manager.</p>
 <code>WHERE</code> throws away the NULL rows. Put such a condition in the <code>ON</code> clause instead.</li>
 </ul></div>`,
       examples: [
+        {
+          title: "Two hops: employee → country → region",
+          lang: "sql",
+          code: `
+-- Everyone who does not work in Canada, with the country and region names.
+-- 25 rows: Mei Wong (11, United States, Northern America) first ... Jordan Lee (49, Australia) last.
+SELECT e.id, e.first_name, c.name AS country, r.name AS region
+  FROM employees e
+  JOIN countries c ON c.code = e.country_code
+  JOIN regions r   ON r.id = c.region_id
+ WHERE c.code <> 'CA'
+ ORDER BY r.id, e.id;
+
+-- Active employees per region. LEFT JOIN twice keeps all 20 regions:
+-- Northern America 43 ... and 7 regions with 0 (Southern Europe, Eastern Europe, Middle Africa, ...).
+SELECT r.id, r.name AS region, COUNT(e.id) AS employees
+  FROM regions r
+  LEFT JOIN countries c ON c.region_id = r.id
+  LEFT JOIN employees e ON e.country_code = c.code AND e.status = 'ACTIVE'
+ GROUP BY r.id, r.name
+ ORDER BY r.id;`,
+          note: "Compare the second query with <code>SELECT * FROM v_region_stats</code> and <code>GET /api/v1/reports/region-stats</code>: the same headcounts. Try it with plain <code>JOIN</code> instead of <code>LEFT JOIN</code> and the 7 empty regions disappear.",
+        },
         {
           title: "Employees with their job title and department name",
           lang: "sql",
@@ -726,6 +756,7 @@ SELECT e.id, e.first_name, e.last_name
         "For each department, show its name, its manager's name and its manager's job title (three tables). Make sure Research Lab is still in the result.",
         "Find the employees whose manager works in a different department from them. Write down who they are and explain why that is normal in this company.",
         "Find the jobs that no employee has. Use either <code>LEFT JOIN … IS NULL</code> or <code>NOT EXISTS</code>, then try the other way and check both give the same answer.",
+        "Write one query that lists every region with the number of <em>countries</em> it has and the number of <em>active employees</em> working there, including regions with 0 employees. Check your numbers against <code>v_region_stats</code>.",
       ],
       quiz: [
         {
@@ -1127,6 +1158,7 @@ constraint name, never the full message.</p>
 <thead><tr><th>Foreign key (constraint name)</th><th>ON DELETE</th><th>Effect when you delete the referenced row</th></tr></thead>
 <tbody>
 <tr><td><code>employees.department_id</code> (<code>employees_department_id_fkey</code>)</td><td>RESTRICT</td><td>Refused while the department has employees.</td></tr>
+<tr><td><code>employees.country_code</code> (<code>employees_country_fk</code>)</td><td>RESTRICT</td><td>A country someone works in cannot be deleted. (You cannot try it: <code>regions</code> and <code>countries</code> are read-only even for <code>qa_writer</code>. Setting <code>country_code = 'XX'</code> on an employee fails with the same constraint name.)</td></tr>
 <tr><td><code>employees.manager_id</code> (<code>employees_manager_id_fkey</code>)</td><td>RESTRICT</td><td>Refused while someone has this employee as manager.</td></tr>
 <tr><td><code>employees.job_id</code> (<code>employees_job_id_fkey</code>)</td><td>(default)</td><td>Refused while someone has this job.</td></tr>
 <tr><td><code>leave_requests.employee_id</code> (<code>leave_requests_employee_id_fkey</code>)</td><td>CASCADE</td><td>The employee's leave requests are deleted too.</td></tr>
@@ -1258,8 +1290,8 @@ ROLLBACK;`,
           code: `
 -- The database accepts a Software Engineer at 30000. The API's range is 80000 to 115000.
 INSERT INTO employees (first_name, last_name, gender, email, date_of_birth, hire_date,
-                       job_id, department_id, manager_id, salary)
-VALUES ('Sql', 'Lowpay', 'FEMALE', 'sql.lowpay@icehr.test', '1995-06-15', '2026-11-02', 4, 2, 9, 30000)
+                       job_id, department_id, manager_id, salary, country_code)
+VALUES ('Sql', 'Lowpay', 'FEMALE', 'sql.lowpay@icehr.test', '1995-06-15', '2026-11-02', 4, 2, 9, 30000, 'CA')
 RETURNING id;
 COMMIT;
 
@@ -2391,9 +2423,9 @@ class SqlSetupTest {
     private Integer insertQaAnalyst(String email) {
         return writer.scalar(Integer.class,
                 "INSERT INTO employees (first_name, last_name, gender, email, date_of_birth, hire_date, " +
-                "                       job_id, department_id, manager_id, salary) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
-                "Sql", "Setup", "MALE", email, LocalDate.of(1990, 5, 1), LocalDate.of(2020, 1, 6), 6, 3, 3, 70000);
+                "                       job_id, department_id, manager_id, salary, country_code) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                "Sql", "Setup", "MALE", email, LocalDate.of(1990, 5, 1), LocalDate.of(2020, 1, 6), 6, 3, 3, 70000, "CA");
     }
 
     @Test
