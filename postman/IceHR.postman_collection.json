@@ -759,7 +759,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"Alex\",\n  \"lastName\": \"Gender\",\n  \"gender\": \"OTHER\",\n  \"email\": \"alex.gender@icehr.test\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"hireDate\": \"2024-03-04\",\n  \"jobId\": 4,\n  \"departmentId\": 2,\n  \"salary\": 95000\n}",
+              "raw": "{\n  \"firstName\": \"Alex\",\n  \"lastName\": \"Gender\",\n  \"gender\": \"OTHER\",\n  \"email\": \"alex.gender@icehr.test\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"hireDate\": \"2024-03-04\",\n  \"jobId\": 4,\n  \"departmentId\": 2,\n  \"countryCode\": \"CA\",\n  \"salary\": 95000\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -874,7 +874,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"Pat\",\n  \"lastName\": \"Postman\",\n  \"gender\": \"FEMALE\",\n  \"email\": \"{{uniqueEmail}}\",\n  \"phone\": \"416-555-0199\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"hireDate\": \"2024-03-04\",\n  \"jobId\": 4,\n  \"departmentId\": 2,\n  \"managerId\": 9,\n  \"salary\": 95000\n}"
+              "raw": "{\n  \"firstName\": \"Pat\",\n  \"lastName\": \"Postman\",\n  \"gender\": \"FEMALE\",\n  \"email\": \"{{uniqueEmail}}\",\n  \"phone\": \"416-555-0199\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"hireDate\": \"2024-03-04\",\n  \"jobId\": 4,\n  \"departmentId\": 2,\n  \"countryCode\": \"CA\",\n  \"managerId\": 9,\n  \"salary\": 95000\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/employees",
@@ -914,7 +914,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"Copy\",\n  \"lastName\": \"Cat\",\n  \"gender\": \"MALE\",\n  \"email\": \"ETHAN.NGUYEN@icehr.test\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"hireDate\": \"2024-03-04\",\n  \"jobId\": 4,\n  \"departmentId\": 2,\n  \"salary\": 95000\n}",
+              "raw": "{\n  \"firstName\": \"Copy\",\n  \"lastName\": \"Cat\",\n  \"gender\": \"MALE\",\n  \"email\": \"ETHAN.NGUYEN@icehr.test\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"hireDate\": \"2024-03-04\",\n  \"jobId\": 4,\n  \"departmentId\": 2,\n  \"countryCode\": \"CA\",\n  \"salary\": 95000\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -959,7 +959,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"Low\",\n  \"lastName\": \"Pay\",\n  \"gender\": \"FEMALE\",\n  \"email\": \"low.pay@icehr.test\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"hireDate\": \"2024-03-04\",\n  \"jobId\": 4,\n  \"departmentId\": 2,\n  \"salary\": 79999\n}",
+              "raw": "{\n  \"firstName\": \"Low\",\n  \"lastName\": \"Pay\",\n  \"gender\": \"FEMALE\",\n  \"email\": \"low.pay@icehr.test\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"hireDate\": \"2024-03-04\",\n  \"jobId\": 4,\n  \"departmentId\": 2,\n  \"countryCode\": \"CA\",\n  \"salary\": 79999\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1004,7 +1004,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"Too\",\n  \"lastName\": \"Young\",\n  \"gender\": \"MALE\",\n  \"email\": \"too.young@icehr.test\",\n  \"dateOfBirth\": \"2006-03-05\",\n  \"hireDate\": \"2024-03-04\",\n  \"jobId\": 15,\n  \"departmentId\": 8,\n  \"salary\": 45000\n}",
+              "raw": "{\n  \"firstName\": \"Too\",\n  \"lastName\": \"Young\",\n  \"gender\": \"MALE\",\n  \"email\": \"too.young@icehr.test\",\n  \"dateOfBirth\": \"2006-03-05\",\n  \"hireDate\": \"2024-03-04\",\n  \"jobId\": 15,\n  \"departmentId\": 8,\n  \"countryCode\": \"CA\",\n  \"salary\": 45000\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1948,7 +1948,211 @@
       ]
     },
     {
-      "name": "6. Reports",
+      "name": "6. Regions and countries",
+      "item": [
+        {
+          "name": "List regions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"20 regions, ids 1 to 20\", () => { const r = pm.response.json(); pm.expect(r).to.have.lengthOf(20); pm.expect(r.map(x => x.id)).to.eql(Array.from({ length: 20 }, (_, i) => i + 1)); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/regions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "regions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Region 1 with its countries",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Canada and the United States\", () => pm.expect(pm.response.json().countries.map(c => c.code)).to.eql([\"CA\", \"US\"]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/regions/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "regions",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Countries in region 10",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"4 countries, all in region 10\", () => { const c = pm.response.json(); pm.expect(c).to.have.lengthOf(4); pm.expect(c.every(x => x.regionId === 10)).to.be.true; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/countries?regionId=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "countries"
+              ],
+              "query": [
+                {
+                  "key": "regionId",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get country CA",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Canada, region 1\", () => pm.expect(pm.response.json()).to.eql({ code: \"CA\", name: \"Canada\", regionId: 1 }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/countries/CA",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "countries",
+                "CA"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Employees working in the US",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"9 employees, all US, region 1\", () => { const p = pm.response.json(); pm.expect(p.totalElements).to.eql(9); pm.expect(p.content.every(e => e.countryCode === \"US\" && e.regionId === 1)).to.be.true; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/employees?countryCode=US",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "employees"
+              ],
+              "query": [
+                {
+                  "key": "countryCode",
+                  "value": "US"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Hire in a country that does not exist (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"problem+json with code COUNTRY_NOT_FOUND\", () => {",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "  pm.expect(pm.response.json().code).to.eql(\"COUNTRY_NOT_FOUND\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"No\",\n  \"lastName\": \"Where\",\n  \"gender\": \"MALE\",\n  \"email\": \"no.where@icehr.test\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"hireDate\": \"2024-03-04\",\n  \"jobId\": 4,\n  \"departmentId\": 2,\n  \"countryCode\": \"XX\",\n  \"salary\": 95000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "employees"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Reports",
       "item": [
         {
           "name": "Department statistics",
@@ -1978,11 +2182,40 @@
               ]
             }
           }
+        },
+        {
+          "name": "Region statistics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"20 regions; nobody in Southern Europe (7)\", () => { const r = pm.response.json(); pm.expect(r).to.have.lengthOf(20); pm.expect(r.find(x => x.regionId === 7).headcount).to.eql(0); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/region-stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "region-stats"
+              ]
+            }
+          }
         }
       ]
     },
     {
-      "name": "7. Bad requests",
+      "name": "8. Bad requests",
       "item": [
         {
           "name": "Unknown endpoint (404)",
@@ -2200,7 +2433,7 @@
       ]
     },
     {
-      "name": "8. Clean up",
+      "name": "9. Clean up",
       "item": [
         {
           "name": "Reset all data",

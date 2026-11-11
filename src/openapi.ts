@@ -145,7 +145,7 @@ export function openApiDocument() {
           "salaries as whole numbers (annual, in dollars). Errors are RFC 7807 `application/problem+json` with a machine-readable `code`. " +
           "Every response carries an `X-Request-Id` header, and every `201 Created` a `Location` header.",
         "",
-        "**Seed data**: 15 jobs, 9 departments, 60 employees and 35 leave requests with fixed ids. " +
+        "**Seed data**: 15 jobs, 9 departments, 60 employees, 35 leave requests, 20 regions and 82 countries, with fixed ids. " +
           "`POST /api/v1/reset` puts everything back. New records get ids from 1001 up.",
         "",
         "**Business rules** (the test oracle) are listed in the README, section 5.",
@@ -153,7 +153,7 @@ export function openApiDocument() {
     },
     servers: [{ url: "/", description: "This server" }],
     tags: [
-      { name: "Employees" }, { name: "Departments" }, { name: "Jobs" }, { name: "Leave requests" },
+      { name: "Employees" }, { name: "Departments" }, { name: "Jobs" }, { name: "Leave requests" }, { name: "Regions and countries" },
       { name: "Reports" }, { name: "Test support" },
     ],
   });

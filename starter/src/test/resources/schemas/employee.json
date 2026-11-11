@@ -3,7 +3,7 @@
   "title": "Employee",
   "type": "object",
   "required": ["id", "firstName", "lastName", "gender", "email", "phone", "dateOfBirth", "hireDate", "jobId", "departmentId",
-               "managerId", "salary", "status", "terminationDate", "createdAt", "updatedAt"],
+               "managerId", "countryCode", "regionId", "salary", "status", "terminationDate", "createdAt", "updatedAt"],
   "properties": {
     "id": { "type": "integer", "minimum": 1 },
     "firstName": { "type": "string", "minLength": 1, "maxLength": 50 },
@@ -16,6 +16,8 @@
     "jobId": { "type": "integer" },
     "departmentId": { "type": "integer" },
     "managerId": { "type": ["integer", "null"] },
+    "countryCode": { "type": "string", "pattern": "^[A-Z]{2}$" },
+    "regionId": { "type": "integer", "minimum": 1, "maximum": 20 },
     "salary": { "type": "integer", "minimum": 1 },
     "status": { "enum": ["ACTIVE", "TERMINATED"] },
     "terminationDate": { "type": ["string", "null"] },

@@ -167,7 +167,7 @@ describe("employees: read", () => {
     const r = await get("/employees/13");
     expect(r.body).toEqual({
       id: 13, firstName: "Ethan", lastName: "Nguyen", gender: "MALE", email: "ethan.nguyen@icehr.test", phone: "416-555-0113",
-      dateOfBirth: "1996-02-14", hireDate: "2023-04-03", jobId: 4, departmentId: 2, managerId: 9, salary: 80000,
+      dateOfBirth: "1996-02-14", hireDate: "2023-04-03", jobId: 4, departmentId: 2, managerId: 9, countryCode: "CA", regionId: 1, salary: 80000,
       status: "ACTIVE", terminationDate: null, createdAt: "2023-04-03T09:00:00-04:00", updatedAt: "2023-04-03T09:00:00-04:00",
     });
     expect((await get("/employees/5")).body).toMatchObject({ firstName: "Chloé", email: "chloe.tremblay@icehr.test" });
@@ -229,6 +229,7 @@ describe("employees: create and update", () => {
       { field: "hireDate", message: "is required" },
       { field: "jobId", message: "must be a number" },
       { field: "departmentId", message: "is required" },
+      { field: "countryCode", message: "is required" },
       { field: "salary", message: "must be a whole number" },
     ]);
   });
@@ -308,6 +309,69 @@ describe("employees: create and update", () => {
     const r = await patch("/employees/58", { salary: 50000 });
     expect(r.status).toBe(409);
     expect(r.body.code).toBe("EMPLOYEE_TERMINATED");
+  });
+});
+
+describe("regions and countries", () => {
+  it("lists 20 regions and 82 countries; a region shows its countries", async () => {
+    const regions = await get("/regions");
+    expect(regions.body).toHaveLength(20);
+    expect(regions.body.map((r: { id: number }) => r.id)).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
+    expect(regions.body[0]).toEqual({ id: 1, name: "Northern America", countryCount: 2 });
+    expect((await get("/countries")).body).toHaveLength(82);
+    expect((await get("/regions/1")).body).toEqual({ id: 1, name: "Northern America", countries: [{ code: "CA", name: "Canada" }, { code: "US", name: "United States" }] });
+    expect((await get("/regions/21")).status).toBe(404);
+    expect((await get("/countries?regionId=10")).body.map((c: { code: string }) => c.code)).toEqual(["CI", "GH", "NG", "SN"]);
+    expect((await get("/countries/CI")).body).toEqual({ code: "CI", name: "Côte d'Ivoire", regionId: 10 });
+    expect((await get("/countries/ca")).body.errors).toEqual([{ field: "code", message: "must be a two-letter country code in capitals, like CA" }]);
+    expect((await get("/countries/ZZ")).status).toBe(404);
+  });
+
+  it("employees work in a country; regionId follows the country", async () => {
+    expect((await get("/employees/11")).body).toMatchObject({ firstName: "Mei", countryCode: "US", regionId: 1 });
+    expect((await get("/employees/38")).body).toMatchObject({ countryCode: "JP", regionId: 17 });
+    expect((await get("/employees?countryCode=CA")).body.totalElements).toBe(35);
+    expect((await get("/employees?countryCode=US")).body.totalElements).toBe(9);
+    expect((await get("/employees?regionId=1")).body.totalElements).toBe(44);
+    expect((await get("/employees?regionId=7")).body.totalElements).toBe(0);
+    expect((await get("/employees?countryCode=usa")).status).toBe(400);
+    const moved = await patch("/employees/13", { countryCode: "US", regionId: 99 });
+    expect(moved.body).toMatchObject({ countryCode: "US", regionId: 1 });
+    expect((await patch("/employees/13", { countryCode: "JP" })).body.regionId).toBe(17);
+  });
+
+  it("countryCode is required, two capital letters, and must exist", async () => {
+    expect((await post("/employees", newEmployee({ countryCode: undefined }))).body.errors).toEqual([{ field: "countryCode", message: "is required" }]);
+    for (const bad of ["ca", "CAN", "C", 1]) {
+      expect((await post("/employees", newEmployee({ countryCode: bad }))).body.errors[0].field).toBe("countryCode");
+    }
+    const unknown = await post("/employees", newEmployee({ countryCode: "XX" }));
+    expect(unknown.status).toBe(422);
+    expect(unknown.body.code).toBe("COUNTRY_NOT_FOUND");
+    expect((await post("/employees", newEmployee({ countryCode: "XX", salary: 1 }))).body.code).toBe("COUNTRY_NOT_FOUND"); // checked before salary
+  });
+
+  it("region stats include regions with nobody in them", async () => {
+    const r = await get("/reports/region-stats");
+    expect(r.body).toHaveLength(20);
+    expect(r.body[0]).toMatchObject({ regionId: 1, regionName: "Northern America", countryCount: 2, headcount: 43 });
+    expect(r.body[6]).toEqual({ regionId: 7, regionName: "Southern Europe", countryCount: 4, headcount: 0, averageSalary: null });
+    expect(r.body.reduce((n: number, x: { headcount: number }) => n + x.headcount, 0)).toBe(59);
+  });
+
+  it("regions and countries are read-only reference data that a reset keeps", async () => {
+    const url = process.env.ICEHR_TEST_ADMIN_URL!.replace("postgres:postgres@", "qa_writer:qa_writer@");
+    const c = new pg.Client({ connectionString: url });
+    await c.connect();
+    try {
+      await expect(c.query("UPDATE countries SET name = 'X' WHERE code = 'CA'")).rejects.toThrow(/permission denied/);
+      await expect(c.query("DELETE FROM regions WHERE id = 20")).rejects.toThrow(/permission denied/);
+      expect((await c.query("SELECT COUNT(*)::int AS n FROM countries")).rows[0].n).toBe(82);
+    } finally {
+      await c.end();
+    }
+    await reset();
+    expect((await get("/countries")).body).toHaveLength(82);
   });
 });
 
@@ -401,7 +465,10 @@ describe("leave requests", () => {
     if (sickOk.slice(0, 4) === t.slice(0, 4)) {
       expect((await post("/leave-requests", { employeeId: 22, type: "SICK", startDate: addDays(t, -30), endDate: sickOk })).status).toBe(201);
     }
-    expect((await post("/leave-requests", { employeeId: 22, type: "SICK", startDate: addDays(t, -31), endDate: addDays(t, -31) })).body.code)
+    // 31 days ago, or the weekday before it: a weekend-only range would stop at NO_WORKING_DAYS first.
+    let tooOld = addDays(t, -31);
+    while ([0, 6].includes(new Date(`${tooOld}T12:00:00Z`).getUTCDay())) tooOld = addDays(tooOld, -1);
+    expect((await post("/leave-requests", { employeeId: 22, type: "SICK", startDate: tooOld, endDate: tooOld })).body.code)
       .toBe("START_DATE_TOO_OLD");
     const start = weekday(t);
     if (start.slice(0, 4) === t.slice(0, 4) && start === t) {
@@ -519,6 +586,10 @@ describe("reports and database", () => {
       expect(await fails("UPDATE employees SET manager_id = 13 WHERE id = 13")).toBe("employees_not_own_manager");
       expect(await fails("UPDATE employees SET status = 'TERMINATED' WHERE id = 13")).toBe("employees_termination_date_matches_status");
       expect(await fails("UPDATE employees SET gender = 'OTHER' WHERE id = 13")).toBe("employees_gender_valid");
+      expect(await fails("UPDATE employees SET country_code = 'XX' WHERE id = 13")).toBe("employees_country_fk");
+      expect(await fails("DELETE FROM countries WHERE code = 'US'")).toBe("employees_country_fk");
+      const reg = await c.query("SELECT country_name, region_name FROM v_employee_directory WHERE id = 38");
+      expect(reg.rows[0]).toEqual({ country_name: "Japan", region_name: "Eastern Asia" });
       expect(await fails("UPDATE employees SET gender = NULL WHERE id = 13")).toBe("23502");
       expect(await fails("DELETE FROM departments WHERE id = 2")).toBe("employees_department_id_fkey");
       expect(await fails("INSERT INTO leave_requests (employee_id, type, start_date, end_date, days) VALUES (13, 'VACATION', '2026-12-10', '2026-12-09', 1)"))

@@ -24,36 +24,42 @@ public record NewEmployee(
         Integer jobId,
         Integer departmentId,
         Integer managerId,
-        Integer salary) {
+        Integer salary,
+        String countryCode) {
 
-    /** A Software Engineer in Engineering reporting to Aisha (9) with a unique email: passes every rule. */
+    /** A Software Engineer in Engineering, working in Canada, reporting to Aisha (9), with a unique email: passes every rule. */
     public static NewEmployee valid() {
         return new NewEmployee("Test", "Engineer", "FEMALE", com.icehr.support.TestData.uniqueEmail(), "416-555-0199",
-                LocalDate.of(1995, 6, 15), LocalDate.of(2024, 3, 4), 4, 2, 9, 95000);
+                LocalDate.of(1995, 6, 15), LocalDate.of(2024, 3, 4), 4, 2, 9, 95000, "CA");
+    }
+
+    /** Two capital letters of a country in GET /countries, e.g. "US" (an unknown code is 422 COUNTRY_NOT_FOUND). */
+    public NewEmployee withCountry(String countryCode) {
+        return new NewEmployee(firstName, lastName, gender, email, phone, dateOfBirth, hireDate, jobId, departmentId, managerId, salary, countryCode);
     }
 
     /** "MALE" or "FEMALE" (anything else is a 400). */
     public NewEmployee withGender(String gender) {
-        return new NewEmployee(firstName, lastName, gender, email, phone, dateOfBirth, hireDate, jobId, departmentId, managerId, salary);
+        return new NewEmployee(firstName, lastName, gender, email, phone, dateOfBirth, hireDate, jobId, departmentId, managerId, salary, countryCode);
     }
 
     public NewEmployee withEmail(String email) {
-        return new NewEmployee(firstName, lastName, gender, email, phone, dateOfBirth, hireDate, jobId, departmentId, managerId, salary);
+        return new NewEmployee(firstName, lastName, gender, email, phone, dateOfBirth, hireDate, jobId, departmentId, managerId, salary, countryCode);
     }
 
     public NewEmployee withSalary(Integer salary) {
-        return new NewEmployee(firstName, lastName, gender, email, phone, dateOfBirth, hireDate, jobId, departmentId, managerId, salary);
+        return new NewEmployee(firstName, lastName, gender, email, phone, dateOfBirth, hireDate, jobId, departmentId, managerId, salary, countryCode);
     }
 
     public NewEmployee withDates(LocalDate dateOfBirth, LocalDate hireDate) {
-        return new NewEmployee(firstName, lastName, gender, email, phone, dateOfBirth, hireDate, jobId, departmentId, managerId, salary);
+        return new NewEmployee(firstName, lastName, gender, email, phone, dateOfBirth, hireDate, jobId, departmentId, managerId, salary, countryCode);
     }
 
     public NewEmployee withJob(Integer jobId) {
-        return new NewEmployee(firstName, lastName, gender, email, phone, dateOfBirth, hireDate, jobId, departmentId, managerId, salary);
+        return new NewEmployee(firstName, lastName, gender, email, phone, dateOfBirth, hireDate, jobId, departmentId, managerId, salary, countryCode);
     }
 
     public NewEmployee withManager(Integer managerId) {
-        return new NewEmployee(firstName, lastName, gender, email, phone, dateOfBirth, hireDate, jobId, departmentId, managerId, salary);
+        return new NewEmployee(firstName, lastName, gender, email, phone, dateOfBirth, hireDate, jobId, departmentId, managerId, salary, countryCode);
     }
 }

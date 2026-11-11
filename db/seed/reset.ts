@@ -1,5 +1,6 @@
 /**
  * Puts the database back to the exact seed state: same ids, same values, same timestamps.
+ * Regions and countries are reference data created by db/migrations/005_regions.sql; a reset leaves them alone.
  * Used by POST /api/v1/reset, npm run reset and the first npm run dev.
  * Everything happens in one transaction, so a failed reset leaves the old data untouched.
  */
@@ -30,14 +31,14 @@ export async function resetData(c: pg.PoolClient | pg.Client): Promise<ResetSumm
         [id, name, code, location, SYSTEM_START]);
     }
     // Managers always have smaller ids than their reports, so inserting in id order works.
-    for (const [id, first, last, gender, jobId, deptId, managerId, salary, dob, hire, phone] of EMPLOYEES) {
+    for (const [id, first, last, gender, jobId, deptId, managerId, salary, dob, hire, phone, country] of EMPLOYEES) {
       const terminated = TERMINATED[id] ?? null;
       await c.query(
         `INSERT INTO employees (id, first_name, last_name, gender, email, phone, date_of_birth, hire_date, job_id, department_id,
-                                manager_id, salary, status, termination_date, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+                                manager_id, salary, status, termination_date, created_at, updated_at, country_code)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
         [id, first, last, gender, emailFor(first, last), phone, dob, hire, jobId, deptId, managerId, salary,
-          terminated ? "TERMINATED" : "ACTIVE", terminated, at(hire), terminated ? at(terminated, "17:00") : at(hire)]);
+          terminated ? "TERMINATED" : "ACTIVE", terminated, at(hire), terminated ? at(terminated, "17:00") : at(hire), country]);
     }
     for (const [id, , , , managerId] of DEPARTMENTS) {
       if (managerId !== null) await c.query("UPDATE departments SET manager_id = $2 WHERE id = $1", [id, managerId]);

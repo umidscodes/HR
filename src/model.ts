@@ -8,14 +8,15 @@ import { query, type Db } from "./db";
 export interface EmployeeRow {
   id: number; first_name: string; last_name: string; gender: Gender; email: string; phone: string | null;
   date_of_birth: string; hire_date: string; job_id: number; department_id: number; manager_id: number | null;
-  salary: number; status: "ACTIVE" | "TERMINATED"; termination_date: string | null; created_at: Date; updated_at: Date;
+  country_code: string; region_id: number; salary: number; status: "ACTIVE" | "TERMINATED"; termination_date: string | null; created_at: Date; updated_at: Date;
 }
 
 export const GENDERS = ["MALE", "FEMALE"] as const;
 export type Gender = (typeof GENDERS)[number];
 
 export const EMPLOYEE_COLUMNS = `id, first_name, last_name, gender, email, phone, date_of_birth, hire_date, job_id, department_id,
-  manager_id, salary, status, termination_date, created_at, updated_at`;
+  manager_id, country_code, (SELECT c.region_id FROM countries c WHERE c.code = employees.country_code) AS region_id,
+  salary, status, termination_date, created_at, updated_at`;
 
 export const toEmployee = (r: EmployeeRow) => ({
   id: r.id,
@@ -29,6 +30,8 @@ export const toEmployee = (r: EmployeeRow) => ({
   jobId: r.job_id,
   departmentId: r.department_id,
   managerId: r.manager_id,
+  countryCode: r.country_code,
+  regionId: r.region_id,
   salary: r.salary,
   status: r.status,
   terminationDate: r.termination_date,

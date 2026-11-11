@@ -61,6 +61,6 @@ export function newEmployee(over: Record<string, unknown> = {}) {
   return {
     firstName: "Jane", lastName: "Doe", gender: "FEMALE", email: `jane.doe.${Math.random().toString(36).slice(2, 8)}@icehr.test`,
     phone: "416-555-0199", dateOfBirth: "1995-06-15", hireDate: "2024-03-04",
-    jobId: 4, departmentId: 2, managerId: 9, salary: 95000, ...over,
+    jobId: 4, departmentId: 2, managerId: 9, countryCode: "CA", salary: 95000, ...over,
   };
 }

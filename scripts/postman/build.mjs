@@ -154,7 +154,7 @@ const collection = {
         tests: [status(200), 'pm.test("31 women, all FEMALE", () => { const p = pm.response.json(); pm.expect(p.totalElements).to.eql(31); pm.expect(p.content.every(e => e.gender === "FEMALE")).to.be.true; });'],
       }),
       req("Hire with an invalid gender (400)", "POST", "/employees", {
-        body: { firstName: "Alex", lastName: "Gender", gender: "OTHER", email: "alex.gender@icehr.test", dateOfBirth: "1995-06-15", hireDate: "2024-03-04", jobId: 4, departmentId: 2, salary: 95000 },
+        body: { firstName: "Alex", lastName: "Gender", gender: "OTHER", email: "alex.gender@icehr.test", dateOfBirth: "1995-06-15", hireDate: "2024-03-04", jobId: 4, departmentId: 2, countryCode: "CA", salary: 95000 },
         tests: [...problem("VALIDATION_FAILED", 400), 'pm.test("gender must be MALE or FEMALE", () => pm.expect(pm.response.json().errors).to.eql([{ field: "gender", message: "must be one of: MALE, FEMALE" }]));'],
       }),
       req("Search by name", "GET", "/employees?search=nguyen", {
@@ -165,7 +165,7 @@ const collection = {
       }),
       req("Hire an employee", "POST", "/employees", {
         prerequest: ['pm.collectionVariables.set("uniqueEmail", "postman." + Date.now() + "@icehr.test");'],
-        rawBody: JSON.stringify({ firstName: "Pat", lastName: "Postman", gender: "FEMALE", email: "{{uniqueEmail}}", phone: "416-555-0199", dateOfBirth: "1995-06-15", hireDate: "2024-03-04", jobId: 4, departmentId: 2, managerId: 9, salary: 95000 }, null, 2),
+        rawBody: JSON.stringify({ firstName: "Pat", lastName: "Postman", gender: "FEMALE", email: "{{uniqueEmail}}", phone: "416-555-0199", dateOfBirth: "1995-06-15", hireDate: "2024-03-04", jobId: 4, departmentId: 2, countryCode: "CA", managerId: 9, salary: 95000 }, null, 2),
         tests: [
           status(201),
           'pm.test("ACTIVE with an id from 1001", () => { const e = pm.response.json(); pm.expect(e.status).to.eql("ACTIVE"); pm.expect(e.id).to.be.at.least(1001); });',
@@ -173,15 +173,15 @@ const collection = {
         ],
       }),
       req("Hire with a taken email (409)", "POST", "/employees", {
-        body: { firstName: "Copy", lastName: "Cat", gender: "MALE", email: "ETHAN.NGUYEN@icehr.test", dateOfBirth: "1995-06-15", hireDate: "2024-03-04", jobId: 4, departmentId: 2, salary: 95000 },
+        body: { firstName: "Copy", lastName: "Cat", gender: "MALE", email: "ETHAN.NGUYEN@icehr.test", dateOfBirth: "1995-06-15", hireDate: "2024-03-04", jobId: 4, departmentId: 2, countryCode: "CA", salary: 95000 },
         tests: problem("EMAIL_TAKEN", 409),
       }),
       req("Hire below the salary range (422)", "POST", "/employees", {
-        body: { firstName: "Low", lastName: "Pay", gender: "FEMALE", email: "low.pay@icehr.test", dateOfBirth: "1995-06-15", hireDate: "2024-03-04", jobId: 4, departmentId: 2, salary: 79999 },
+        body: { firstName: "Low", lastName: "Pay", gender: "FEMALE", email: "low.pay@icehr.test", dateOfBirth: "1995-06-15", hireDate: "2024-03-04", jobId: 4, departmentId: 2, countryCode: "CA", salary: 79999 },
         tests: problem("SALARY_OUT_OF_RANGE", 422),
       }),
       req("Hire someone too young (422)", "POST", "/employees", {
-        body: { firstName: "Too", lastName: "Young", gender: "MALE", email: "too.young@icehr.test", dateOfBirth: "2006-03-05", hireDate: "2024-03-04", jobId: 15, departmentId: 8, salary: 45000 },
+        body: { firstName: "Too", lastName: "Young", gender: "MALE", email: "too.young@icehr.test", dateOfBirth: "2006-03-05", hireDate: "2024-03-04", jobId: 15, departmentId: 8, countryCode: "CA", salary: 45000 },
         tests: problem("EMPLOYEE_UNDERAGE", 422),
       }),
       req("Hire with invalid fields (400)", "POST", "/employees", {
@@ -273,13 +273,38 @@ const collection = {
       req("Their leave is gone too (CASCADE)", "GET", "/leave-requests/{{leaveId}}", { tests: problem("NOT_FOUND", 404) }),
     ]),
 
-    folder("6. Reports", [
-      req("Department statistics", "GET", "/reports/department-stats", {
-        tests: [status(200), 'pm.test("Research Lab has no one", () => pm.expect(pm.response.json().find(d => d.departmentId === 9).headcount).to.eql(0));'],
+    folder("6. Regions and countries", [
+      req("List regions", "GET", "/regions", {
+        tests: [status(200), 'pm.test("20 regions, ids 1 to 20", () => { const r = pm.response.json(); pm.expect(r).to.have.lengthOf(20); pm.expect(r.map(x => x.id)).to.eql(Array.from({ length: 20 }, (_, i) => i + 1)); });'],
+      }),
+      req("Region 1 with its countries", "GET", "/regions/1", {
+        tests: [status(200), 'pm.test("Canada and the United States", () => pm.expect(pm.response.json().countries.map(c => c.code)).to.eql(["CA", "US"]));'],
+      }),
+      req("Countries in region 10", "GET", "/countries?regionId=10", {
+        tests: [status(200), 'pm.test("4 countries, all in region 10", () => { const c = pm.response.json(); pm.expect(c).to.have.lengthOf(4); pm.expect(c.every(x => x.regionId === 10)).to.be.true; });'],
+      }),
+      req("Get country CA", "GET", "/countries/CA", {
+        tests: [status(200), 'pm.test("Canada, region 1", () => pm.expect(pm.response.json()).to.eql({ code: "CA", name: "Canada", regionId: 1 }));'],
+      }),
+      req("Employees working in the US", "GET", "/employees?countryCode=US", {
+        tests: [status(200), 'pm.test("9 employees, all US, region 1", () => { const p = pm.response.json(); pm.expect(p.totalElements).to.eql(9); pm.expect(p.content.every(e => e.countryCode === "US" && e.regionId === 1)).to.be.true; });'],
+      }),
+      req("Hire in a country that does not exist (422)", "POST", "/employees", {
+        body: { firstName: "No", lastName: "Where", gender: "MALE", email: "no.where@icehr.test", dateOfBirth: "1995-06-15", hireDate: "2024-03-04", jobId: 4, departmentId: 2, countryCode: "XX", salary: 95000 },
+        tests: problem("COUNTRY_NOT_FOUND", 422),
       }),
     ]),
 
-    folder("7. Bad requests", [
+    folder("7. Reports", [
+      req("Department statistics", "GET", "/reports/department-stats", {
+        tests: [status(200), 'pm.test("Research Lab has no one", () => pm.expect(pm.response.json().find(d => d.departmentId === 9).headcount).to.eql(0));'],
+      }),
+      req("Region statistics", "GET", "/reports/region-stats", {
+        tests: [status(200), 'pm.test("20 regions; nobody in Southern Europe (7)", () => { const r = pm.response.json(); pm.expect(r).to.have.lengthOf(20); pm.expect(r.find(x => x.regionId === 7).headcount).to.eql(0); });'],
+      }),
+    ]),
+
+    folder("8. Bad requests", [
       req("Unknown endpoint (404)", "GET", "/salaries", { tests: problem("NOT_FOUND", 404) }),
       req("Wrong method (405)", "DELETE", "/jobs/1", {
         tests: [...problem("METHOD_NOT_ALLOWED", 405), 'pm.test("Allow header", () => pm.expect(pm.response.headers.get("Allow")).to.eql("GET, HEAD"));'],
@@ -293,7 +318,7 @@ const collection = {
       req("Page size too big (400)", "GET", "/employees?size=500", { tests: problem("VALIDATION_FAILED", 400) }),
     ]),
 
-    folder("8. Clean up", [
+    folder("9. Clean up", [
       req("Reset all data", "POST", "/reset", { tests: [status(200)] }),
     ]),
   ],

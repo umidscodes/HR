@@ -4,7 +4,7 @@ API tests (REST Assured) and database tests (JDBC) for [Ice HR](../README.md), i
 It is where you write your own tests while you follow the tutorials (http://localhost:8080/tutorials/).
 
 - Java 17 or newer, JUnit 5, REST Assured 5, Jackson, AssertJ, the PostgreSQL JDBC driver
-- 26 example tests that pass against a freshly started Ice HR
+- 28 example tests that pass against a freshly started Ice HR
 - The normal run leaves your data as it found it: tests delete what they create, and never reset unless you ask
 
 ## 1. Prerequisites
@@ -63,7 +63,7 @@ starter/
   src/test/java/com/icehr/
     config/Config.java                     reads config/local.properties (-Dkey=value overrides any key)
     api/Specs.java                         shared request/response specifications: Specs.api(), Specs.ok(), Specs.problem(422, "CODE")
-    model/                                 Java records for the JSON: Employee, NewEmployee, Department, LeaveRequest, Problem, Page<T>
+    model/                                 Java records for the JSON: Employee, NewEmployee, Department, LeaveRequest, Country, Problem, Page<T>
     db/Db.java                             JDBC helper: Db.reader() (qa_reader) and Db.writer() (qa_writer)
     support/TestData.java                  unique emails, today in Toronto, future Mondays for leave
     support/Json.java                      the Jackson setup (dates as "2026-11-05")

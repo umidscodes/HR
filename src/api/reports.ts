@@ -39,3 +39,29 @@ registry.registerPath({
     "Compare it with your own SQL GROUP BY query.",
   responses: { 200: json(z.array(StatsSchema), "One entry per department, ordered by departmentId.") },
 });
+
+const RegionStatsSchema = registry.register("RegionStats", z.object({
+  regionId: z.number().int().openapi({ example: 1 }),
+  regionName: z.string().openapi({ example: "Northern America" }),
+  countryCount: z.number().int().openapi({ example: 2 }),
+  headcount: z.number().int().openapi({ example: 43, description: "ACTIVE employees working in the region's countries." }),
+  averageSalary: z.number().int().nullable().openapi({ example: 91000, description: "Rounded to the nearest dollar. Null when headcount is 0." }),
+}));
+
+router.get("/reports/region-stats", async (_req, res) => {
+  const rows = await sql<{ region_id: number; region_name: string; country_count: number; headcount: number; average_salary: number | null }>(
+    "SELECT * FROM v_region_stats ORDER BY region_id");
+  res.json(rows.map((r) => ({
+    regionId: r.region_id,
+    regionName: r.region_name,
+    countryCount: r.country_count,
+    headcount: r.headcount,
+    averageSalary: r.average_salary,
+  })));
+});
+
+registry.registerPath({
+  method: "get", path: "/api/v1/reports/region-stats", tags: ["Reports"], summary: "Headcount per region",
+  description: "Reads the database view `v_region_stats`: all 20 regions, including those where nobody works (headcount 0). ACTIVE employees only.",
+  responses: { 200: json(z.array(RegionStatsSchema), "One entry per region, ordered by regionId.") },
+});

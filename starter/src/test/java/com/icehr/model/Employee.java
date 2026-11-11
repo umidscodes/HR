@@ -23,6 +23,8 @@ public record Employee(
         Integer jobId,
         Integer departmentId,
         Integer managerId,
+        String countryCode,
+        Integer regionId,
         Integer salary,
         String status,
         LocalDate terminationDate,

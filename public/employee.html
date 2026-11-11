@@ -25,6 +25,7 @@
       <div><label for="hireDate">Hire date</label><input id="hireDate" name="hireDate" type="date"></div>
       <div><label for="jobId">Job</label><select id="jobId" name="jobId" data-type="int"></select></div>
       <div><label for="departmentId">Department</label><select id="departmentId" name="departmentId" data-type="int"></select></div>
+      <div><label for="countryCode">Country</label><select id="countryCode" name="countryCode"></select></div>
       <div><label for="managerId">Manager id (optional)</label><input id="managerId" name="managerId" data-type="int" data-optional="1" inputmode="numeric"></div>
       <div><label for="salary">Annual salary</label><input id="salary" name="salary" data-type="int" inputmode="numeric"></div>
     </div>
@@ -83,7 +84,7 @@
   }
 
   function fill(e) {
-    for (const k of ["firstName", "lastName", "gender", "email", "phone", "dateOfBirth", "hireDate", "jobId", "departmentId", "managerId", "salary"]) {
+    for (const k of ["firstName", "lastName", "gender", "email", "phone", "dateOfBirth", "hireDate", "jobId", "departmentId", "countryCode", "managerId", "salary"]) {
       form[k].value = e[k] ?? "";
     }
     document.getElementById("title").textContent = `${e.firstName} ${e.lastName}`;
@@ -120,13 +121,14 @@
     try {
       jobs = await fillSelect(form.jobId, "/jobs", (j) => j.title);
       await fillSelect(form.departmentId, "/departments", (d) => d.name);
+      await fillCountries(form.countryCode, "Choose...");
       if (id) {
         fill(await api("GET", `/employees/${id}`));
         await loadRelated();
       } else {
         document.getElementById("title").textContent = "Add employee";
         document.getElementById("status-line").textContent = "Every field except phone and manager is required.";
-        form.reset();
+        form.reset(); form.countryCode.value = "";
         showRange();
       }
     } catch (e) { showMessage("error", e); }

@@ -52,7 +52,7 @@ Press **Ctrl+C** to stop. Later starts take a few seconds. Your data is kept bet
 | `npm run dev` | Database + app on port 8080 (first run also creates and seeds the database) |
 | `npm run reset` | Puts all data back to the seed (same as `POST /api/v1/reset`) |
 | `npm run db:start` | Runs only the database, for DBeaver or JDBC practice |
-| `npm test` | The app's own smoke tests (50 tests of every business rule, against a separate test database) |
+| `npm test` | The app's own smoke tests (56 tests of every business rule, against a separate test database) |
 | `npm run postman` | Rebuilds the Postman collection in `postman/` |
 
 **Ports:** to use other ports, set `PORT` (app, default 8080) and/or `DB_PORT` (database, default 5434) before `npm run dev`. On Windows Command Prompt: `set PORT=8081`; in PowerShell: `$env:PORT="8081"`.
@@ -118,6 +118,7 @@ If the database changed, you see `[db] Applying migration ...` lines. These upda
 
 | Version | What changed | What you need to do |
 | --- | --- | --- |
+| Regions and countries | New tables `regions` (20) and `countries` (82), and endpoints `GET /regions`, `/regions/{id}`, `/countries`, `/countries/{code}` and `/reports/region-stats`. Employees have a required `countryCode` (rules E6a and E9a) and a read-only `regionId`; new filters `?countryCode=` and `?regionId=`. New column `employees.country_code`, new view `v_region_stats`, and country and region names in `v_employee_directory`. 35 employees work in Canada, 9 in the US and 16 elsewhere. | Add `"countryCode"` (for example `"CA"`) to every body you send to `POST /employees` or `PUT /employees/{id}`. If you build `new NewEmployee(...)` yourself, `countryCode` is the new **last** argument (`..., 95000, "CA")`). Add `country_code` to any SQL `INSERT INTO employees`. If you compare an `Employee` with a `NewEmployee` field by field, add `"regionId"` to `ignoringFields(...)`. Your existing data gets countries automatically; employees you created yourself are set to `CA`. |
 | Common mistakes lesson | New last lesson in the REST Assured tutorial: "Common mistakes and how to spot them" (12 mistakes, each with the real symptom and the fix). The API did not change. | Reload the tutorials page (Ctrl+F5). Your progress is kept. |
 | Content type | API responses now send `Content-Type: application/json` exactly, instead of `application/json; charset=utf-8`. Errors send `application/problem+json`, instead of `application/problem+json; charset=utf-8`. Nothing else changed. | Only tests that compare the whole header as text need a change: `.header("Content-Type", "application/json")` now passes, and the old string with `; charset=utf-8` fails. `.contentType(ContentType.JSON)` and checks with `startsWith` or `containsString` keep working. |
 | Gender | Employees have a required `gender` field: `MALE` or `FEMALE` (rule E1a). New filter `GET /employees?gender=`. New database column `employees.gender` (NOT NULL, CHECK `employees_gender_valid`), also in `v_employee_directory`. The seed has 31 women and 29 men. | Add `"gender"` to every body you send to `POST /employees` or `PUT /employees/{id}`. If you build `new NewEmployee(...)` yourself, gender is the third argument (`"Jane", "Doe", "FEMALE", email, ...`). Add `gender` to any SQL `INSERT INTO employees`. Your existing data gets genders automatically; employees you created yourself are set to `MALE`. |
@@ -125,7 +126,7 @@ If the database changed, you see `[db] Applying migration ...` lines. These upda
 
 ## 2. What is inside
 
-A company with **9 departments**, **15 jobs** and **60 employees**. Employees ask for time off with **leave requests**, which their manager approves or rejects.
+A Canadian company with **9 departments**, **15 jobs** and **60 employees**, who work from 18 countries; the database knows 82 countries in **20 world regions**. Employees ask for time off with **leave requests**, which their manager approves or rejects.
 
 ```
 jobs (15)                 departments (9)
@@ -144,6 +145,8 @@ jobs (15)                 departments (9)
                           leave_requests (35)
                           id, type, start_date, end_date, days, reason,
                           status, decision_reason, decided_at
+
+employees.country_code ──► countries (82)  code (CA, US, ...), name, region_id ──► regions (20)  id 1 to 20, name
 ```
 
 The **web UI** (http://localhost:8080) shows the same data: a dashboard, an employee list with search, employee detail and edit pages, departments and leave requests. Every page uses the REST API, so you can open DevTools (F12), go to the Network tab, click Save and watch the exact request your tests will send. It has no `data-testid` attributes and is not meant for Selenium practice.
@@ -194,6 +197,37 @@ After every reset the data is **exactly the same**: same ids, names, salaries, d
 | 58 | Tanya Ivanova | **TERMINATED** on 2026-06-30. Cannot be edited, request leave or become anyone's manager. |
 | 60 | Ella Robinson | The newest hire (2026-10-19) and the youngest (born 2007-03-15). Salary 40000, the minimum for Support Agent. No leave. |
 
+### Regions and countries
+
+20 regions (ids **1 to 20**, the UN's world sub-regions) and 82 countries (two-letter ISO codes). Every employee works in one country (`countryCode`); their `regionId` follows from it.
+
+| Region | Name | Countries (code) | Employees |
+| --- | --- | --- | --- |
+| 1 | Northern America | Canada (CA), United States (US) | 44: **35 in CA**, **9 in US** (11, 18, 29, 30, 42, 43, 47, 50, 51) |
+| 2 | Central America | MX, GT, CR, PA | 1: 27 (MX) |
+| 3 | Caribbean | JM, CU, DO, TT | 1: 57 (JM) |
+| 4 | South America | BR, AR, CL, CO, PE | 1: 55 (BR) |
+| 5 | Northern Europe | GB, IE, SE, NO, DK, FI | 2: 32 (GB), 40 (IE) |
+| 6 | Western Europe | FR, DE, NL, BE, CH, AT | 2: 12 (FR), 20 (DE) |
+| 7 | Southern Europe | IT, ES, PT, GR | none |
+| 8 | Eastern Europe | PL, UA, RO, CZ, HU | none |
+| 9 | Northern Africa | EG, MA, DZ, TN | 1: 41 (EG) |
+| 10 | Western Africa | NG, GH, SN, CI | 1: 59 (GH) |
+| 11 | Middle Africa | CM, CD, AO | none |
+| 12 | Eastern Africa | KE, ET, TZ, RW | 1: 48 (KE) |
+| 13 | Southern Africa | ZA, BW, NA | none |
+| 14 | Western Asia | TR, SA, AE, JO, LB | 1: 31 (AE) |
+| 15 | Central Asia | KZ, UZ, KG | none |
+| 16 | Southern Asia | IN, PK, BD, LK, NP | 2: 21 (PK), 45 (IN) |
+| 17 | Eastern Asia | CN, JP, KR, MN | 2: 19 (KR), 38 (JP) |
+| 18 | South-eastern Asia | VN, PH, ID, TH, MY, SG | none |
+| 19 | Australia and New Zealand | AU, NZ | 1: 49 (AU) |
+| 20 | Pacific Islands | FJ, PG, WS | none |
+
+Seven regions have nobody in them: good for `LEFT JOIN` practice. Everyone not listed works in Canada (CA), including terminated Tanya (58). `GET /api/v1/countries` lists every code and name; Côte d'Ivoire (CI) has an accent and an apostrophe.
+
+### Other facts worth knowing
+
 There are **31 women and 29 men** (`gender` is `FEMALE` or `MALE`); in Engineering, 6 women and 8 men. Employees 20, 35 and 47 have **no phone number** (`phone: null`, SQL `IS NULL`). Department 9 (Research Lab) has no employees, so it is the one department you can delete. Every email is `firstname.lastname@icehr.test` in lower case, without accents or apostrophes.
 
 ### Leave requests
@@ -224,7 +258,7 @@ Other handy ones: **6** (approved, already started, so it cannot be cancelled), 
 - **Dates** are `YYYY-MM-DD` strings (`"2026-11-05"`). **Date-times** are ISO 8601 with the Toronto offset (`"2026-11-05T10:15:00-05:00"`).
 - **Salaries** are whole numbers: annual pay in dollars (`95000`). No decimals.
 - **Ids** are whole numbers. Seeded ids are below 1000; new ids start at 1001.
-- **Lists:** jobs, departments, a department's employees, direct reports and department stats are plain JSON arrays. Employees and leave requests are **paged**:
+- **Lists:** jobs, departments, regions, countries, a department's employees, direct reports and the reports are plain JSON arrays. Employees and leave requests are **paged**:
   `?page=0&size=20&sort=lastName,asc` returns `{ "content": [...], "page": 0, "size": 20, "totalElements": 60, "totalPages": 3 }`.
   `page` starts at 0; `size` is 1 to 100 (default 20); `sort` is `field` or `field,asc|desc` (default `id,asc`). A page past the end returns `content: []` with status 200.
 - **Created:** a `POST` that creates something returns **201** with a **`Location`** header (e.g. `/api/v1/employees/1001`) and the new record in the body.
@@ -299,7 +333,7 @@ Other 400 codes: `MALFORMED_JSON` (the body is not valid JSON, or is not a JSON 
 | PATCH | `/departments/{id}` | Change only the fields you send |
 | DELETE | `/departments/{id}` | Delete an empty department |
 | GET | `/departments/{id}/employees` | The department's employees (array), optional `?status=ACTIVE` or `TERMINATED` |
-| GET | `/employees` | Search (paged). Filters: `departmentId`, `jobId`, `managerId`, `status`, `gender` (`MALE` or `FEMALE`), `search` (in first name, last name or email, ignoring case), `hiredFrom`, `hiredTo`, `minSalary`, `maxSalary`. Sort: `id`, `firstName`, `lastName`, `email`, `hireDate`, `dateOfBirth`, `salary`. |
+| GET | `/employees` | Search (paged). Filters: `departmentId`, `jobId`, `managerId`, `status`, `gender` (`MALE` or `FEMALE`), `countryCode` (e.g. `US`), `regionId` (1 to 20), `search` (in first name, last name or email, ignoring case), `hiredFrom`, `hiredTo`, `minSalary`, `maxSalary`. Sort: `id`, `firstName`, `lastName`, `email`, `hireDate`, `dateOfBirth`, `salary`. |
 | POST | `/employees` | Hire |
 | GET | `/employees/{id}` | One employee |
 | PUT | `/employees/{id}` | Replace (send every field) |
@@ -314,7 +348,12 @@ Other 400 codes: `MALFORMED_JSON` (the body is not valid JSON, or is not a JSON 
 | POST | `/leave-requests/{id}/approve` | `{"approverId": 3}` |
 | POST | `/leave-requests/{id}/reject` | `{"approverId": 3, "reason": "..."}` |
 | POST | `/leave-requests/{id}/cancel` | No body |
+| GET | `/regions` | The 20 regions (array), each with `countryCount` |
+| GET | `/regions/{id}` | One region with its `countries` (code and name) |
+| GET | `/countries` | All 82 countries (array), optional `?regionId=` |
+| GET | `/countries/{code}` | One country, e.g. `/countries/CA`. The code must be two capital letters (400 otherwise). |
 | GET | `/reports/department-stats` | Headcount and salary figures per department, read from the view `v_department_stats` |
+| GET | `/reports/region-stats` | Countries and active headcount per region (all 20, including empty ones), read from the view `v_region_stats` |
 
 Swagger (http://localhost:8080/swagger) shows every request body, every response and an example of each error.
 
@@ -335,6 +374,7 @@ Content-Type: application/json
   "jobId": 4,
   "departmentId": 2,
   "managerId": 9,
+  "countryCode": "CA",
   "salary": 95000
 }
 ```
@@ -345,7 +385,7 @@ Location: /api/v1/employees/1001
 Content-Type: application/json
 
 {"id":1001,"firstName":"Jane","lastName":"Doe","gender":"FEMALE","email":"jane.doe@icehr.test","phone":"416-555-0199",
- "dateOfBirth":"1995-06-15","hireDate":"2026-11-02","jobId":4,"departmentId":2,"managerId":9,"salary":95000,
+ "dateOfBirth":"1995-06-15","hireDate":"2026-11-02","jobId":4,"departmentId":2,"managerId":9,"countryCode":"CA","regionId":1,"salary":95000,
  "status":"ACTIVE","terminationDate":null,"createdAt":"2026-11-05T10:15:00-05:00","updatedAt":"2026-11-05T10:15:00-05:00"}
 ```
 
@@ -369,9 +409,11 @@ Content-Type: application/json
 | E4 | `dateOfBirth`, `hireDate` | Required, real dates `YYYY-MM-DD` (`2026-02-30` is invalid) | 400 |
 | E5 | `jobId`, `departmentId` | Required whole numbers greater than 0 | 400 |
 | E6 | `managerId` | Optional whole number greater than 0 | 400 |
+| E6a | `countryCode` | Required: two capital letters, like `CA` (`ca`, `CAN` or `1` are invalid) | 400 |
 | E7 | `salary` | Required whole number greater than 0 (`95000.5` and `"95000"` are invalid) | 400 |
 | E8 | Job exists | | 422 `JOB_NOT_FOUND` |
 | E9 | Department exists | | 422 `DEPARTMENT_NOT_FOUND` |
+| E9a | Country exists (see `GET /countries`) | | 422 `COUNTRY_NOT_FOUND` |
 | E10 | Not their own manager (update only) | | 422 `SELF_MANAGER` |
 | E11 | Manager exists | | 422 `MANAGER_NOT_FOUND` |
 | E12 | Manager is ACTIVE | | 422 `MANAGER_NOT_ACTIVE` |
@@ -383,6 +425,7 @@ Content-Type: application/json
 
 - **New employees** are `ACTIVE` with `terminationDate: null`.
 - **PUT** replaces every editable field: leaving out `phone` or `managerId` sets them to `null`; leaving out a required field is a 400.
+- **`regionId` is read-only**: it always follows `countryCode`. Sending `regionId` in a body is ignored; change the region by changing the country.
 - **PATCH** changes only the fields you send (at least one, or 400). Send `"phone": null` or `"managerId": null` to clear them. The result must still pass E8 to E17: for example, changing only `jobId` can fail E16 because the old salary no longer fits.
 - **Terminated** employees cannot be changed with PUT or PATCH: 409 `EMPLOYEE_TERMINATED` (checked before E8).
 - **DELETE**: 409 `EMPLOYEE_HAS_REPORTS` if anyone (active or terminated) has them as manager. Otherwise the employee is deleted, **their leave requests are deleted too** (`ON DELETE CASCADE`), and any department they managed or leave they decided keeps its row with `manager_id` / `approver_id` set to `NULL` (`ON DELETE SET NULL`).
@@ -497,7 +540,9 @@ The database runs whenever `npm run dev` (or `npm run db:start`) runs. Connect w
 | --- | --- | --- |
 | `jobs` | `id`, `title`, `min_salary`, `max_salary` | title unique; `min_salary > 0`; `max_salary >= min_salary` |
 | `departments` | `id`, `name`, `code`, `location`, `manager_id`, `created_at`, `updated_at` | `code` unique and `^[A-Z]{2,5}$`; `lower(name)` unique; `manager_id` → `employees.id` **ON DELETE SET NULL** |
-| `employees` | `id`, `first_name`, `last_name`, `gender`, `email`, `phone`, `date_of_birth`, `hire_date`, `job_id`, `department_id`, `manager_id`, `salary`, `status`, `termination_date`, `created_at`, `updated_at` | `gender` NOT NULL, `MALE` or `FEMALE`; `email` unique and lower case; `phone` NULL or `###-###-####`; `salary > 0`; `status` in (`ACTIVE`, `TERMINATED`); `termination_date` set exactly when TERMINATED; not their own manager; `hire_date > date_of_birth`; `job_id` → `jobs`; `department_id` → `departments` **ON DELETE RESTRICT**; `manager_id` → `employees` **ON DELETE RESTRICT** |
+| `employees` | `id`, `first_name`, `last_name`, `gender`, `country_code`, `email`, `phone`, `date_of_birth`, `hire_date`, `job_id`, `department_id`, `manager_id`, `salary`, `status`, `termination_date`, `created_at`, `updated_at` | `gender` NOT NULL, `MALE` or `FEMALE`; `country_code` NOT NULL → `countries.code` **ON DELETE RESTRICT** (`employees_country_fk`); `email` unique and lower case; `phone` NULL or `###-###-####`; `salary > 0`; `status` in (`ACTIVE`, `TERMINATED`); `termination_date` set exactly when TERMINATED; not their own manager; `hire_date > date_of_birth`; `job_id` → `jobs`; `department_id` → `departments` **ON DELETE RESTRICT**; `manager_id` → `employees` **ON DELETE RESTRICT** |
+| `regions` | `id`, `name` | `id` from 1 to 20; `name` unique. Read-only reference data. |
+| `countries` | `code`, `name`, `region_id` | `code` is the primary key, two capital letters; `name` unique; `region_id` → `regions.id`. Read-only reference data. |
 | `leave_requests` | `id`, `employee_id`, `type`, `start_date`, `end_date`, `days`, `reason`, `status`, `approver_id`, `decision_reason`, `decided_at`, `created_at`, `updated_at` | `type` and `status` from the fixed lists; `end_date >= start_date`; `days > 0`; `employee_id` → `employees` **ON DELETE CASCADE**; `approver_id` → `employees` **ON DELETE SET NULL** |
 
 **Dates in SQL:** the database server runs in UTC, so `CURRENT_DATE` can be a different day from Ice HR's "today" late in the evening. When a query needs Toronto's today, write `(now() AT TIME ZONE 'America/Toronto')::date`.
@@ -507,7 +552,10 @@ Some rules live **only in the API** (salary range, age at hire, leave balance, o
 ### Views
 
 - **`v_department_stats`**: one row per department: `department_id`, `department_name`, `department_code`, `headcount` (active only), `average_salary` (rounded), `min_salary`, `max_salary`, `total_salary`. `GET /reports/department-stats` returns exactly this.
-- **`v_employee_directory`**: every employee with `full_name`, `email`, `status`, `job_title`, `department_name`, `manager_id`, `manager_name`, `salary`, `hire_date`, `gender`.
+- **`v_employee_directory`**: every employee with `full_name`, `email`, `status`, `job_title`, `department_name`, `manager_id`, `manager_name`, `salary`, `hire_date`, `gender`, `country_code`, `country_name`, `region_id`, `region_name`.
+- **`v_region_stats`**: one row per region (all 20): `region_id`, `region_name`, `country_count`, `headcount` (active only), `average_salary`. `GET /reports/region-stats` returns exactly this.
+
+**Reference data:** `regions` and `countries` are read-only for every database user, `qa_writer` included, and a reset does not touch them.
 
 ### A few queries to start with
 
@@ -547,7 +595,7 @@ SELECT employee_id, SUM(days) AS used FROM leave_requests
 ```
 src/
   app.ts            Express app: API routes, 404/405, Swagger UI, the web UI and the tutorials
-  api/              one file per area: employees, departments, jobs, leave, reports, support (health, reset)
+  api/              one file per area: employees, departments, jobs, leave, regions (and countries), reports, support (health, reset)
   http.ts           body/query/id parsing, paging, request ids, the error handler
   errors.ts         RFC 7807 errors
   openapi.ts        OpenAPI registry, field types and their error messages
@@ -555,7 +603,7 @@ src/
   model.ts          database rows and their JSON shape
   dates.ts          "today" in Toronto, weekday counting, age
   db.ts             PostgreSQL connection pool and transactions
-db/migrations/      SQL: tables and constraints, views, database users
+db/migrations/      SQL: tables and constraints, views, database users, then one file per later change (gender, regions)
 db/seed/            the seed data and the reset routine
 public/             the web UI (plain HTML, CSS and JavaScript)
 tutorials/          the tutorial site (static, served at /tutorials)
